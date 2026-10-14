@@ -4,15 +4,26 @@ import { Card, DeckState, Player } from "./types";
 
 export type RoundState = { players: Player[]; deck: DeckState };
 
-// Picks which active player (by index) an action card is played on.
+export type TargetedKind = "freeze" | "flipThree" | "secondChance";
+
+// Picks which player (by index) a card goes to. `options` lists the legal choices.
 // The actor is the player who received the card.
-export type ChooseTarget = (players: Player[], actor: number) => number;
+export type ChooseTarget = (
+    players: Player[],
+    actor: number,
+    card: TargetedKind,
+    options: number[]
+) => number;
 
 // Freeze and Flip Three need a target. Second Chance does not.
 type TargetedCard = { kind: "action"; action: "freeze" | "flipThree" };
 function needsTarget(card: Card): card is TargetedCard {
     return card.kind === "action" && card.action !== "secondChance";
 }
+const isSecondChance = (c: Card): boolean => c.kind === "action" && c.action === "secondChance";
+
+const activeIndexes = (players: Player[]): number[] =>
+    players.map((_, i) => i).filter((i) => players[i].status === "playing");
 
 function setPlayer(state: RoundState, i: number, player: Player): RoundState {
     return { ...state, players: state.players.map((p, j) => (j === i ? player : p)) };
@@ -34,14 +45,31 @@ function giveToHand(state: RoundState, i: number, card: Card): RoundState {
     return setPlayer(state, i, { ...p, hand: [...p.hand, card] });
 }
 
+function pick(state: RoundState, actor: number, card: TargetedKind, options: number[], choose: ChooseTarget): number {
+    const target = choose(state.players, actor, card, options);
+    if (!options.includes(target)) throw new Error("That player can't be chosen");
+    return target;
+}
+
+// A number, modifier or Second Chance card. A second Second Chance is passed on
+// to an active player who has none, or discarded if nobody can take it.
+function applyPlain(state: RoundState, i: number, card: Card, choose: ChooseTarget): RoundState {
+    const p = state.players[i];
+    if (isSecondChance(card) && p.hand.some(isSecondChance)) {
+        const options = activeIndexes(state.players).filter((j) => !state.players[j].hand.some(isSecondChance));
+        if (options.length === 0) return discard(state, [card]);
+        const to = pick(state, i, "secondChance", options, choose);
+        return giveToHand(state, to, card);
+    }
+    const result = hit(p, card);
+    return discard(setPlayer(state, i, result.player), result.discarded);
+}
+
 function resolveAction(state: RoundState, actor: number, card: TargetedCard, choose: ChooseTarget): RoundState {
     // Nobody left to target (or the round just ended): the card is simply set down.
     if (isRoundOver(state.players)) return giveToHand(state, actor, card);
 
-    const target = choose(state.players, actor);
-    if (state.players[target]?.status !== "playing") {
-        throw new Error("Action cards can only be played on an active player");
-    }
+    const target = pick(state, actor, card.action, activeIndexes(state.players), choose);
     let s = giveToHand(state, target, card);
 
     if (card.action === "freeze") {
@@ -59,8 +87,7 @@ function resolveAction(state: RoundState, actor: number, card: TargetedCard, cho
             pending.push(drawn.card); // counts toward the three, resolved afterwards
             continue;
         }
-        const result = hit(s.players[target], drawn.card);
-        s = discard(setPlayer(s, target, result.player), result.discarded);
+        s = applyPlain(s, target, drawn.card, choose);
     }
 
     // Freeze / Flip Three revealed during this one are resolved after the three
@@ -75,8 +102,7 @@ function resolveAction(state: RoundState, actor: number, card: TargetedCard, cho
 // A player is handed a card (dealt or drawn) and it takes effect.
 function receiveCard(state: RoundState, i: number, card: Card, choose: ChooseTarget): RoundState {
     if (needsTarget(card)) return resolveAction(state, i, card, choose);
-    const result = hit(state.players[i], card);
-    return discard(setPlayer(state, i, result.player), result.discarded);
+    return applyPlain(state, i, card, choose);
 }
 
 // One turn: hit or stay.
@@ -120,8 +146,6 @@ export function playRound(state: RoundState, dealer: number, choose: ChooseTarge
     return s;
 }
 
-// Simple chooser for simulations: a random active player (possibly yourself).
-export const randomTarget: ChooseTarget = (players) => {
-    const active = players.map((_, i) => i).filter((i) => players[i].status === "playing");
-    return active[Math.floor(Math.random() * active.length)];
-};
+// Simple chooser for simulations: a random legal option.
+export const randomTarget: ChooseTarget = (_players, _actor, _card, options) =>
+    options[Math.floor(Math.random() * options.length)];

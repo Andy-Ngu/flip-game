@@ -1,23 +1,39 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { describeCard } from "../game/describe";
 import { scoreHand } from "../game/scoring";
-import { act, Game, newGame, nextRound } from "../game/session";
-import { Card } from "../game/types";
+import { act, chooseTarget, Game, newGame, nextRound } from "../game/session";
+import { CARD_COLORS, styles } from "./GameScreen.styles";
 
 const NAMES = ["Ann", "Ben", "Cat"];
-
-const CARD_COLORS: Record<Card["kind"], string> = {
-    number: "#F4E9C9",
-    action: "#9ED0F5",
-    modifier: "#F5B95E",
-};
 
 const STATUS_LABEL = {
     playing: "",
     stayed: "Stayed",
     busted: "BUST",
     frozen: "Frozen",
+} as const;
+
+// What to tell the player for each kind of card that needs a target.
+const PENDING_INFO = {
+    freeze: {
+        title: "Freeze!",
+        rule: "The player you pick banks their points and is out for the rest of the round.",
+        instruction: "Choose who to freeze:",
+        verb: "Freeze",
+    },
+    flipThree: {
+        title: "Flip Three!",
+        rule: "The player you pick must flip the next 3 cards, and can't stop. They bust if they flip a duplicate.",
+        instruction: "Choose who flips three cards:",
+        verb: "Flip 3 on",
+    },
+    secondChance: {
+        title: "Spare Second Chance",
+        rule: "Each player can hold only one. Give this one to a player who doesn't have one yet.",
+        instruction: "Choose who gets it:",
+        verb: "Give to",
+    },
 } as const;
 
 export default function GameScreen() {
@@ -29,6 +45,33 @@ export default function GameScreen() {
     return (
         <ScrollView contentContainerStyle={styles.container}>
             <Text style={styles.title}>Flip Game</Text>
+
+            {game.pending && (
+                <View style={styles.actionPanel}>
+                    <Text style={styles.actionLabel}>
+                        {players[game.pending.actor].name} drew
+                    </Text>
+                    <Text style={styles.actionTitle}>
+                        {PENDING_INFO[game.pending.card].title}
+                    </Text>
+                    <Text style={styles.actionRule}>
+                        {PENDING_INFO[game.pending.card].rule}
+                    </Text>
+                    <Text style={styles.actionInstruction}>
+                        {PENDING_INFO[game.pending.card].instruction}
+                    </Text>
+                    <View style={styles.optionRow}>
+                        {game.pending.options.map((i) => (
+                            <Button
+                                key={i}
+                                label={`${PENDING_INFO[game.pending!.card].verb} ${players[i].name}${i === game.pending!.actor ? " (yourself)" : ""
+                                    }`}
+                                onPress={() => setGame(chooseTarget(game, i))}
+                            />
+                        ))}
+                    </View>
+                </View>
+            )}
 
             {players.map((p, i) => (
                 <View
@@ -61,7 +104,7 @@ export default function GameScreen() {
                 </View>
             ))}
 
-            {game.phase === "playing" && (
+            {game.phase === "playing" && !game.pending && (
                 <View>
                     <Text style={styles.prompt}>
                         {players[game.current].name}, hit or stay?
@@ -69,7 +112,7 @@ export default function GameScreen() {
                     <View style={styles.row}>
                         <Button label="Hit" onPress={() => setGame(act(game, "hit"))} />
                         <Button
-                            label="Stay"
+                            label={`Stay (${scoreHand(players[game.current])})`}
                             disabled={players[game.current].hand.length === 0}
                             onPress={() => setGame(act(game, "stay"))}
                         />
@@ -104,26 +147,3 @@ function Button(props: { label: string; onPress: () => void; disabled?: boolean 
         </Pressable>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { padding: 16, paddingTop: 64, gap: 12 },
-    title: { fontSize: 28, fontWeight: "700" },
-    row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-    player: { borderWidth: 2, borderColor: "#D0D0D0", borderRadius: 12, padding: 12, gap: 8 },
-    currentPlayer: { borderColor: "#2E6FD8", backgroundColor: "#EAF1FD" },
-    name: { fontSize: 18, fontWeight: "600" },
-    score: { fontSize: 16 },
-    hand: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-    empty: { color: "#888" },
-    card: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
-    cardText: { fontSize: 14, fontWeight: "500" },
-    status: { fontSize: 14, color: "#444" },
-    bust: { color: "#C0262D", fontWeight: "700" },
-    prompt: { fontSize: 18, fontWeight: "600", marginVertical: 8 },
-    button: {
-        flex: 1, backgroundColor: "#2E6FD8", padding: 14,
-        borderRadius: 10, alignItems: "center",
-    },
-    buttonDisabled: { backgroundColor: "#A8B8D8" },
-    buttonText: { color: "white", fontSize: 16, fontWeight: "600" },
-});
