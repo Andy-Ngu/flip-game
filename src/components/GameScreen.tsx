@@ -1,22 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
-import { describeCard } from "../game/describe";
+import Animated, { FadeIn, SlideInDown, ZoomIn } from "react-native-reanimated";
+import { diffEvents, feelFor } from "../game/events";
 import { scoreHand } from "../game/scoring";
 import {
-    act, botStep, chooseTarget, Game, isBotTurn, newGame, nextRound, PlayerSetup,
+  act, botStep, chooseTarget, Game, isBotTurn, newGame, nextRound, PlayerSetup,
 } from "../game/session";
 import { Button } from "./Button";
-import { CARD_COLORS, styles } from "./GameScreen.styles";
+import { styles } from "./GameScreen.styles";
+import { playFeel } from "./haptics";
+import { PlayerCard } from "./PlayerCard";
 
 // How long a computer player "thinks" before it moves, so you can follow along.
 const BOT_DELAY_MS = 900;
-
-const STATUS_LABEL = {
-  playing: "",
-  stayed: "Stayed",
-  busted: "BUST",
-  frozen: "Frozen",
-} as const;
 
 // What to tell the player for each kind of card that needs a target.
 const PENDING_INFO = {
@@ -49,6 +45,7 @@ export default function GameScreen({ seats, onQuit }: Props) {
   // The whole game lives in one piece of state. Each button press replaces it
   // with a new Game object returned by the engine.
   const [game, setGame] = useState<Game>(() => newGame(seats));
+  const [hapticsOn, setHapticsOn] = useState(true);
   const { players } = game.round;
   const botsTurn = isBotTurn(game);
 
@@ -62,6 +59,15 @@ export default function GameScreen({ seats, onQuit }: Props) {
     );
     return () => clearTimeout(timer);
   }, [game]);
+
+  // After every change, work out what happened and give it a feel. Doing this
+  // here, in one place, covers your moves and the computers' moves alike.
+  const previous = useRef<Game>(game);
+  useEffect(() => {
+    const events = diffEvents(previous.current, game);
+    previous.current = game;
+    if (hapticsOn) playFeel(feelFor(events, game.round.players));
+  }, [game, hapticsOn]);
 
   // Who is acting right now: whoever must answer a question, else whoever's turn it is.
   const acting = game.pending ? game.pending.actor : game.phase === "playing" ? game.current : -1;
@@ -78,51 +84,24 @@ export default function GameScreen({ seats, onQuit }: Props) {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Flip Game</Text>
-          <Pressable onPress={confirmQuit}>
-            <Text style={styles.link}>Change players</Text>
-          </Pressable>
+          <View style={styles.headerLinks}>
+            <Pressable onPress={() => setHapticsOn(!hapticsOn)}>
+              <Text style={styles.link}>Haptics: {hapticsOn ? "On" : "Off"}</Text>
+            </Pressable>
+            <Pressable onPress={confirmQuit}>
+              <Text style={styles.link}>Change players</Text>
+            </Pressable>
+          </View>
         </View>
 
         {players.map((p, i) => (
-          <View
+          <PlayerCard
             key={p.id}
-            style={[
-              styles.player,
-              i === acting && styles.currentPlayer,
-              p.status !== "playing" && styles.playerOut,
-            ]}
-          >
-            <View style={styles.row}>
-              <View style={styles.nameRow}>
-                <Text style={styles.name}>{p.name}</Text>
-                {i === acting && (
-                  <Text style={styles.turnBadge}>{game.pending ? "CHOOSING" : "TURN"}</Text>
-                )}
-              </View>
-              <Text style={styles.score}>Total: {p.totalScore}</Text>
-            </View>
-
-            <Text style={styles.tag}>
-              {p.bot ? `${p.bot} computer` : "Human"}
-              {i === game.dealer ? "  ·  dealer" : ""}
-            </Text>
-
-            <View style={styles.hand}>
-              {p.hand.length === 0 && <Text style={styles.empty}>No cards yet</Text>}
-              {p.hand.map((card, k) => (
-                <View
-                  key={k}
-                  style={[styles.card, { backgroundColor: CARD_COLORS[card.kind] }]}
-                >
-                  <Text style={styles.cardText}>{describeCard(card)}</Text>
-                </View>
-              ))}
-            </View>
-
-            <Text style={[styles.status, p.status === "busted" && styles.bust]}>
-              This round: {scoreHand(p)} {STATUS_LABEL[p.status]}
-            </Text>
-          </View>
+            player={p}
+            acting={i === acting}
+            choosing={game.pending !== null}
+            dealer={i === game.dealer}
+          />
         ))}
       </ScrollView>
 
@@ -131,13 +110,13 @@ export default function GameScreen({ seats, onQuit }: Props) {
         {game.note && <Text style={styles.note}>{game.note}</Text>}
 
         {botsTurn && (
-          <View style={styles.botBanner}>
+          <Animated.View entering={FadeIn.duration(200)} style={styles.botBanner}>
             <Text style={styles.botBannerText}>{players[acting].name} is thinking…</Text>
-          </View>
+          </Animated.View>
         )}
 
         {game.pending && !botsTurn && (
-          <View style={styles.actionPanel}>
+          <Animated.View entering={SlideInDown.duration(250)} style={styles.actionPanel}>
             <Text style={styles.actionLabel}>{players[game.pending.actor].name} drew</Text>
             <Text style={styles.actionTitle}>{PENDING_INFO[game.pending.card].title}</Text>
             <Text style={styles.actionRule}>{PENDING_INFO[game.pending.card].rule}</Text>
@@ -149,13 +128,14 @@ export default function GameScreen({ seats, onQuit }: Props) {
                 <Button
                   key={i}
                   fill
-                  label={`${PENDING_INFO[game.pending!.card].verb} ${players[i].name}${i === game.pending!.actor ? " (yourself)" : ""
-                    }`}
+                  label={`${PENDING_INFO[game.pending!.card].verb} ${players[i].name}${
+                    i === game.pending!.actor ? " (yourself)" : ""
+                  }`}
                   onPress={() => setGame(chooseTarget(game, i))}
                 />
               ))}
             </View>
-          </View>
+          </Animated.View>
         )}
 
         {game.phase === "playing" && !game.pending && !botsTurn && (
@@ -179,9 +159,9 @@ export default function GameScreen({ seats, onQuit }: Props) {
 
         {game.phase === "gameOver" && (
           <View style={{ gap: 8 }}>
-            <Text style={styles.prompt}>
+            <Animated.Text entering={ZoomIn.springify()} style={styles.winner}>
               Winner: {game.winners.map((w) => w.name).join(" & ")}
-            </Text>
+            </Animated.Text>
             <View style={styles.row}>
               <Button fill label="Play again" onPress={() => setGame(newGame(seats))} />
               <Button fill label="Change players" onPress={onQuit} />
