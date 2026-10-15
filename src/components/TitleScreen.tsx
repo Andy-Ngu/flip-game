@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
-import { StatusBar } from "expo-status-bar";
 import Animated, {
   Easing,
   FadeInDown,
@@ -56,7 +55,6 @@ export default function TitleScreen({ onPlay }: { onPlay: () => void }) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" />
       <View pointerEvents="none" style={styles.glowOuter} />
       <View pointerEvents="none" style={styles.glowInner} />
 

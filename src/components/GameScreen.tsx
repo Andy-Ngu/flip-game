@@ -128,6 +128,7 @@ export default function GameScreen({ seats, onQuit }: Props) {
                 <Button
                   key={i}
                   fill
+                  variant="secondary"
                   label={`${PENDING_INFO[game.pending!.card].verb} ${players[i].name}${
                     i === game.pending!.actor ? " (yourself)" : ""
                   }`}
@@ -145,6 +146,7 @@ export default function GameScreen({ seats, onQuit }: Props) {
               <Button fill label="Hit" onPress={() => setGame(act(game, "hit"))} />
               <Button
                 fill
+                variant="secondary"
                 label={`Stay (${scoreHand(players[game.current])})`}
                 disabled={players[game.current].hand.length === 0}
                 onPress={() => setGame(act(game, "stay"))}
@@ -164,7 +166,7 @@ export default function GameScreen({ seats, onQuit }: Props) {
             </Animated.Text>
             <View style={styles.row}>
               <Button fill label="Play again" onPress={() => setGame(newGame(seats))} />
-              <Button fill label="Change players" onPress={onQuit} />
+              <Button fill variant="secondary" label="Change players" onPress={onQuit} />
             </View>
           </View>
         )}

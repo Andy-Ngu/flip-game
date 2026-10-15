@@ -31,7 +31,7 @@ try {
 }
 
 const out = path.join(gameDir, "..", ".test-dist");
-const suites = ["round", "session", "bots", "seats", "events", "cards"];
+const suites = ["round", "session", "bots", "seats", "events", "cards", "results"];
 
 fs.rmSync(out, { recursive: true, force: true });
 

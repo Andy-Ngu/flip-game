@@ -6,6 +6,7 @@ import {
 } from "../game/seats";
 import { PlayerSetup } from "../game/session";
 import { Button } from "./Button";
+import { theme } from "./theme";
 import { styles } from "./SetupScreen.styles";
 
 const KINDS: { kind: SeatKind; label: string }[] = [
@@ -41,7 +42,7 @@ export default function SetupScreen({ onStart }: { onStart: (seats: PlayerSetup[
               style={styles.nameInput}
               maxLength={14}
               placeholder="Name"
-              placeholderTextColor="#888888"
+              placeholderTextColor={theme.textFaint}
             />
             <Pressable
               onPress={() => setSeats(removeSeat(seats, i))}
@@ -73,6 +74,7 @@ export default function SetupScreen({ onStart }: { onStart: (seats: PlayerSetup[
       ))}
 
       <Button
+        variant="secondary"
         label={`Add player (${seats.length}/${MAX_SEATS})`}
         onPress={() => setSeats(addSeat(seats))}
         disabled={seats.length >= MAX_SEATS}

@@ -33,5 +33,5 @@ export const styles = StyleSheet.create({
     height: CARD_H + 60,
     backgroundColor: "#FFFFFF",
   },
-  empty: { color: "#666666" },
+  empty: { color: "#7F8BB3" },
 });

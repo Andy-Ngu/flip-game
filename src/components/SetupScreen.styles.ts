@@ -1,19 +1,17 @@
 import { StyleSheet } from "react-native";
-
-const INK = "#111111";
-const BLUE = "#2E6FD8";
+import { theme } from "./theme";
 
 export const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F7F7F9" },
+  screen: { flex: 1, backgroundColor: theme.bg },
   container: { padding: 16, paddingTop: 56, paddingBottom: 40, gap: 12 },
-  title: { fontSize: 28, fontWeight: "700", color: INK },
-  help: { fontSize: 15, color: "#555555" },
+  title: { fontSize: 28, fontWeight: "900", color: theme.text },
+  help: { fontSize: 15, lineHeight: 21, color: theme.textDim },
 
   seat: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.surface,
     borderWidth: 2,
-    borderColor: "#D0D0D0",
-    borderRadius: 12,
+    borderColor: theme.border,
+    borderRadius: 14,
     padding: 12,
     gap: 10,
   },
@@ -21,13 +19,13 @@ export const styles = StyleSheet.create({
   nameInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#C8C8C8",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderColor: theme.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     fontSize: 17,
-    color: INK,
-    backgroundColor: "#FFFFFF",
+    color: theme.text,
+    backgroundColor: theme.bg,
   },
   remove: {
     width: 40,
@@ -35,24 +33,24 @@ export const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F3D6D8",
+    backgroundColor: theme.dangerBg,
   },
   removeDisabled: { opacity: 0.35 },
-  removeText: { fontSize: 18, color: "#C0262D", fontWeight: "700" },
+  removeText: { fontSize: 18, color: theme.danger, fontWeight: "700" },
 
   kindRow: { flexDirection: "row", gap: 6 },
   kind: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#C8C8C8",
+    borderColor: theme.border,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.surfaceRaised,
   },
-  kindSelected: { backgroundColor: BLUE, borderColor: BLUE },
-  kindText: { fontSize: 14, fontWeight: "600", color: INK },
-  kindTextSelected: { color: "#FFFFFF" },
+  kindSelected: { backgroundColor: theme.gold, borderColor: theme.gold },
+  kindText: { fontSize: 14, fontWeight: "700", color: theme.textDim },
+  kindTextSelected: { color: theme.onGold },
 
-  problem: { color: "#C0262D", fontSize: 14, fontWeight: "600" },
+  problem: { color: theme.danger, fontSize: 14, fontWeight: "600" },
 });
