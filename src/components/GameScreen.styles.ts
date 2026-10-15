@@ -7,7 +7,7 @@ export const styles = StyleSheet.create({
   container: { padding: 16, paddingTop: 56, paddingBottom: 24, gap: 12 },
 
   header: { gap: 6 },
-  headerLinks: { flexDirection: "row", gap: 20 },
+  headerLinks: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 6 },
   title: { fontSize: 22, fontWeight: "900", letterSpacing: 2, color: theme.text },
   link: { color: theme.gold, fontSize: 15, fontWeight: "700" },
 

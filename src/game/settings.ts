@@ -3,13 +3,14 @@ import { MAX_SEATS, defaultSeats, Seat, seatProblem } from "./seats";
 // What the app remembers between launches.
 export type Settings = {
   haptics: boolean;   // vibration on or off
+  sound: boolean;     // sound effects on or off
   seats: Seat[];      // the players from the last game that was started
 };
 
 export const SETTINGS_KEY = "stack-seven/settings/v1";
 
 export function defaultSettings(): Settings {
-  return { haptics: true, seats: defaultSeats() };
+  return { haptics: true, sound: true, seats: defaultSeats() };
 }
 
 const KINDS = ["human", "easy", "medium", "hard"];
@@ -38,13 +39,15 @@ export function parseSettings(raw: string | null): Settings {
 
   const haptics = typeof d.haptics === "boolean" ? d.haptics : fallback.haptics;
 
+  const sound = typeof d.sound === "boolean" ? d.sound : fallback.sound;
+
   let seats = fallback.seats;
   if (Array.isArray(d.seats) && d.seats.length <= MAX_SEATS && d.seats.every(isSeat)) {
     const candidate = d.seats.map((s) => ({ name: s.name, kind: s.kind }));
     if (seatProblem(candidate) === null) seats = candidate;
   }
 
-  return { haptics, seats };
+  return { haptics, sound, seats };
 }
 
 export function serializeSettings(settings: Settings): string {

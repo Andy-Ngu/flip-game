@@ -4,16 +4,6 @@ A push-your-luck card game for 3 to 8 players, built with React Native, Expo and
 
 On your turn you either **hit** (draw a card) or **stay** (bank your points). Draw a number you already hold and you bust, scoring nothing for the round. Collect seven different numbers and you complete a **Seven Stack** for a bonus and end the round on the spot. First to 200 wins.
 
-<!-- TODO: add a demo video link or an animated GIF here, for example:
-https://youtu.be/XXXXXXXX -->
-
-## Screenshots
-
-<!-- TODO: add 3 or 4 screenshots to docs/screenshots/ and keep the file names below, or change them. -->
-
-| Setup | A hand in play | Choosing a target | Round result |
-| :---: | :---: | :---: | :---: |
-| ![Setup screen](docs/screenshots/setup.png) | ![A hand in play](docs/screenshots/hand.png) | ![Choosing a target](docs/screenshots/target.png) | ![Round result](docs/screenshots/result.png) |
 
 ## Features
 
@@ -24,6 +14,7 @@ https://youtu.be/XXXXXXXX -->
 - **Results board and winner screen** with ranked standings, counting totals and confetti
 - **In-app rules** with real card faces, from the title screen or mid-game
 - **Card game feel**: cards fly in face-down and flip, spring into a fanned hand, wobble gently on your turn, tilt toward your finger when you press and hold, and droop when you bust
+- **Sound effects** for drawing, staying, busting, Time Out, Shield, Seven Stack and winning, with a Sound switch
 - **Haptics** tuned to the moment: a tick when you draw, a heavier buzz when a Time Out lands, a success pattern for a Seven Stack
 - **Original card art**, drawn entirely in code (no image files), plus an animated title screen and app icon
 
@@ -61,6 +52,7 @@ Each player starts a round with one card. Players then take turns in seat order,
 | Language | TypeScript (strict mode) |
 | Animation | React Native Reanimated, running on the UI thread |
 | Haptics | expo-haptics |
+| Sound | expo-audio |
 | Storage | AsyncStorage for saved settings |
 | Tests | Plain TypeScript test scripts and simulations, no framework |
 
@@ -82,6 +74,7 @@ src/
     seats.ts       Setup screen logic
     results.ts     Ranked results for the round-over board and the final standings
     settings.ts    What is saved between launches, and how to read it back safely
+    sounds.ts      Which sound effects play for each moment of a game
     cardFace.ts    What each card looks like (colors, symbols, captions)
     handLayout.ts  Where each card sits in the fanned hand
     check-*.ts     Test suites
@@ -89,6 +82,9 @@ src/
     TitleScreen, SetupScreen, GameScreen, RoundSummary, WinnerScreen,
     PlayerCard, Hand, CardFace, Button, theme (all colors in one file)
   app/           Expo Router entry point
+assets/
+  source/make-sounds.py   Builds every sound effect from sine waves and noise
+  sounds/                 The nine generated .wav files
 scripts/
   run-checks.js  Compiles and runs every test suite (npm test)
 ```
@@ -107,6 +103,8 @@ scripts/
 
 **Animation that stays smooth.** Each card's position, tilt, flip and press state live in Reanimated shared values, so animation runs on the UI thread even while JavaScript is busy. The fanned layout is a pure function (`handLayout.ts`) and is tested like the rest of the game logic. The idle wobble only runs for the player whose turn it is, and stops for everyone else.
 
+**Sounds made from nothing.** I didn't want to hunt for sound files with unclear licenses, so a short Python script builds every sound from sine waves and noise: a card flick is a puff of filtered noise, a bust is a falling tone, a Shield is a struck-metal partial series. They are original, the script is in the repo, and changing a sound means changing a number and running it again. Which sound plays is decided by a pure function over the same events the haptics use, so it is tested like the rest of the game.
+
 **Saved settings that can't break the app.** Whatever is read back from the phone is untrusted: it can be missing, cut off, from an older version of the app or edited by hand. `parseSettings` checks every field on its own and falls back to the default, and a saved table must pass the same rules as the setup screen, so a bad save can never crash the app or start a game the setup screen would refuse.
 
 **Cards that look right on every phone.** Card text ignores the phone's font-size setting, and the Time Out and Shield icons are drawn with shapes instead of font symbols, because symbols render differently from one Android font to the next.
@@ -117,7 +115,7 @@ scripts/
 npm test
 ```
 
-This compiles and runs eight suites (about 185 checks):
+This compiles and runs nine suites (about 205 checks):
 
 | Suite | What it covers |
 | --- | --- |
@@ -128,6 +126,7 @@ This compiles and runs eight suites (about 185 checks):
 | `check-events` | Turning state changes into events and haptic feels |
 | `check-cards` | Card faces, hand layout and the 6 and 9 underline |
 | `check-results` | The round results board: ranking, ties, and when the game ends |
+| `check-sounds` | Which sound plays for each moment: flicks for cards, the outcome after them, and the win fanfare |
 | `check-settings` | Loading saved settings safely, including missing, damaged and out-of-date data |
 
 A typical tournament result over 3,000 games (it varies a little each run):
@@ -163,12 +162,11 @@ Scan the QR code with Expo Go. Haptics need a real phone.
 
 ## Roadmap
 
-- Sound effects
 - Online multiplayer (later, once the offline game is finished)
 
 ## About this project
 
-Stack Seven is an independent hobby project made for learning and for my portfolio. It is not affiliated with any publisher, and it uses no artwork, text or assets from another game. It is inspired by the push-your-luck card game genre, and its animation feel is inspired by the way Balatro handles cards. All code and card art here are original.
+Stack Seven is an independent hobby project made for learning and for my portfolio. It is not affiliated with any publisher, and it uses no artwork, text or assets from another game. It is inspired by the push-your-luck card game genre, and its animation feel is inspired by the way Balatro handles cards. All code, card art and sound effects here are original.
 
 I built this with Claude (Anthropic's AI assistant) as a pair-programming partner, while learning Expo and TypeScript.
 

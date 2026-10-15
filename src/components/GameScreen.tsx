@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { FadeIn, SlideInDown } from "react-native-reanimated";
 import { diffEvents, feelFor } from "../game/events";
+import { soundsFor } from "../game/sounds";
 import { scoreHand } from "../game/scoring";
 import {
   act, botStep, chooseTarget, Game, isBotTurn, newGame, nextRound, PlayerSetup,
@@ -11,6 +12,7 @@ import { styles } from "./GameScreen.styles";
 import { playFeel } from "./haptics";
 import { HowToPlay } from "./HowToPlay";
 import { PlayerCard } from "./PlayerCard";
+import { useSounds } from "./useSounds";
 import { RoundSummary } from "./RoundSummary";
 import { WinnerScreen } from "./WinnerScreen";
 
@@ -43,12 +45,14 @@ const PENDING_INFO = {
 
 type Props = {
   seats: PlayerSetup[];                    // who is playing, from the setup screen
-  hapticsOn: boolean;                      // a saved setting, owned by the parent
+  hapticsOn: boolean;                      // saved settings, owned by the parent
   onHapticsChange: (on: boolean) => void;
+  soundOn: boolean;
+  onSoundChange: (on: boolean) => void;
   onQuit: () => void;                      // go back to the setup screen
 };
 
-export default function GameScreen({ seats, hapticsOn, onHapticsChange, onQuit }: Props) {
+export default function GameScreen({ seats, hapticsOn, onHapticsChange, soundOn, onSoundChange, onQuit }: Props) {
   // The whole game lives in one piece of state. Each button press replaces it
   // with a new Game object returned by the engine.
   const [game, setGame] = useState<Game>(() => newGame(seats));
@@ -58,6 +62,7 @@ export default function GameScreen({ seats, hapticsOn, onHapticsChange, onQuit }
   const [peeking, setPeeking] = useState(false);
   const { players } = game.round;
   const botsTurn = isBotTurn(game);
+  const { play, playCues } = useSounds(soundOn);
 
   // When it's a computer player's turn, wait a moment and make one move.
   // Each move changes `game`, which re-runs this effect for the next move.
@@ -77,7 +82,15 @@ export default function GameScreen({ seats, hapticsOn, onHapticsChange, onQuit }
     const events = diffEvents(previous.current, game);
     previous.current = game;
     if (hapticsOn) playFeel(feelFor(events, game.round.players));
-  }, [game, hapticsOn]);
+    playCues(soundsFor(events, game.round.players));
+  }, [game, hapticsOn, playCues]);
+
+  // The first deal of the game. (Later rounds are dealt by a state change, which the
+  // effect above hears. The first one happens before this screen exists.)
+  useEffect(() => {
+    const timer = setTimeout(() => play("deal"), 250);
+    return () => clearTimeout(timer);
+  }, []);
 
   // The results board waits a moment after the last move, so you see the final card land
   // (or the bust) before the board covers the table.
@@ -86,7 +99,10 @@ export default function GameScreen({ seats, hapticsOn, onHapticsChange, onQuit }
     setPeeking(false);
     setResultsReady(false);
     if (game.phase !== "roundOver") return;
-    const timer = setTimeout(() => setResultsReady(true), RESULTS_DELAY_MS);
+    const timer = setTimeout(() => {
+      setResultsReady(true);
+      play("roundEnd");
+    }, RESULTS_DELAY_MS);
     return () => clearTimeout(timer);
   }, [game.phase]);
 
@@ -116,6 +132,9 @@ export default function GameScreen({ seats, hapticsOn, onHapticsChange, onQuit }
         <View style={styles.header}>
           <Text style={styles.title}>Stack Seven</Text>
           <View style={styles.headerLinks}>
+            <Pressable onPress={() => onSoundChange(!soundOn)}>
+              <Text style={styles.link}>Sound: {soundOn ? "On" : "Off"}</Text>
+            </Pressable>
             <Pressable onPress={() => onHapticsChange(!hapticsOn)}>
               <Text style={styles.link}>Haptics: {hapticsOn ? "On" : "Off"}</Text>
             </Pressable>

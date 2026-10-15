@@ -46,6 +46,8 @@ export default function Home() {
           seats={players}
           hapticsOn={settings.haptics}
           onHapticsChange={(on) => update({ haptics: on })}
+          soundOn={settings.sound}
+          onSoundChange={(on) => update({ sound: on })}
           onQuit={() => setPlayers(null)}
         />
       )}

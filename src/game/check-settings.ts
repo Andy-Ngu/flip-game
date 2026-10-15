@@ -10,11 +10,12 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
 // ---- nothing stored yet ----
 check("first launch gives the defaults", same(parseSettings(null), defaultSettings()));
-check("haptics are on by default", defaultSettings().haptics === true);
+check("haptics and sound are on by default", defaultSettings().haptics === true && defaultSettings().sound === true);
 
 // ---- a round trip ----
 const mine: Settings = {
   haptics: false,
+  sound: false,
   seats: [
     { name: "Andy", kind: "human" },
     { name: "Sam", kind: "human" },
@@ -30,6 +31,12 @@ check("empty text gives the defaults", same(parseSettings(""), defaultSettings()
 check("JSON that isn't an object gives the defaults", same(parseSettings("42"), defaultSettings()));
 check("null JSON gives the defaults", same(parseSettings("null"), defaultSettings()));
 check("an array gives the defaults", same(parseSettings("[1,2]"), defaultSettings()));
+
+// ---- settings saved by the previous version had no sound field ----
+const old = parseSettings(JSON.stringify({ haptics: false, seats: mine.seats }));
+check("an older save without sound keeps its other settings and turns sound on",
+  old.haptics === false && old.sound === true && same(old.seats, mine.seats));
+check("a bad sound value falls back to on", parseSettings(JSON.stringify({ sound: "loud" })).sound === true);
 
 // ---- each field is checked on its own ----
 const wrongHaptics = parseSettings(JSON.stringify({ haptics: "yes", seats: mine.seats }));
@@ -64,7 +71,7 @@ const blank = parseSettings(JSON.stringify({ seats: [
 check("a blank name gives the default seats", same(blank.seats, defaultSeats()));
 
 // ---- extra fields (from a newer version) are ignored ----
-const extra = parseSettings(JSON.stringify({ ...mine, sound: true, theme: "x" }));
+const extra = parseSettings(JSON.stringify({ ...mine, volume: 0.5, theme: "x" }));
 check("unknown extra fields are ignored", same(extra, mine));
 
 // ---- parse returns a fresh copy, so the default can't be changed by accident ----
