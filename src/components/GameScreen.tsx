@@ -42,15 +42,16 @@ const PENDING_INFO = {
 } as const;
 
 type Props = {
-  seats: PlayerSetup[];   // who is playing, from the setup screen
-  onQuit: () => void;     // go back to the setup screen
+  seats: PlayerSetup[];                    // who is playing, from the setup screen
+  hapticsOn: boolean;                      // a saved setting, owned by the parent
+  onHapticsChange: (on: boolean) => void;
+  onQuit: () => void;                      // go back to the setup screen
 };
 
-export default function GameScreen({ seats, onQuit }: Props) {
+export default function GameScreen({ seats, hapticsOn, onHapticsChange, onQuit }: Props) {
   // The whole game lives in one piece of state. Each button press replaces it
   // with a new Game object returned by the engine.
   const [game, setGame] = useState<Game>(() => newGame(seats));
-  const [hapticsOn, setHapticsOn] = useState(true);
   const [showRules, setShowRules] = useState(false);
   const [roundNumber, setRoundNumber] = useState(1);
   // At the end of a round the results cover the table. "See table" hides them for a look.
@@ -115,7 +116,7 @@ export default function GameScreen({ seats, onQuit }: Props) {
         <View style={styles.header}>
           <Text style={styles.title}>Stack Seven</Text>
           <View style={styles.headerLinks}>
-            <Pressable onPress={() => setHapticsOn(!hapticsOn)}>
+            <Pressable onPress={() => onHapticsChange(!hapticsOn)}>
               <Text style={styles.link}>Haptics: {hapticsOn ? "On" : "Off"}</Text>
             </Pressable>
             <Pressable onPress={() => setShowRules(true)}>

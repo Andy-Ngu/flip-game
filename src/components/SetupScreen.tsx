@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import {
-  addSeat, defaultSeats, MAX_SEATS, MIN_SEATS, removeSeat, Seat, SeatKind,
-  seatProblem, toSetup, updateSeat,
+  addSeat, MAX_SEATS, MIN_SEATS, removeSeat, Seat, SeatKind,
+  seatProblem, updateSeat,
 } from "../game/seats";
-import { PlayerSetup } from "../game/session";
 import { Button } from "./Button";
 import { theme } from "./theme";
 import { styles } from "./SetupScreen.styles";
@@ -16,8 +15,13 @@ const KINDS: { kind: SeatKind; label: string }[] = [
   { kind: "hard", label: "Hard" },
 ];
 
-export default function SetupScreen({ onStart }: { onStart: (seats: PlayerSetup[]) => void }) {
-  const [seats, setSeats] = useState<Seat[]>(defaultSeats);
+type Props = {
+  initialSeats: Seat[];            // the players from last time (or the default table)
+  onStart: (seats: Seat[]) => void;
+};
+
+export default function SetupScreen({ initialSeats, onStart }: Props) {
+  const [seats, setSeats] = useState<Seat[]>(initialSeats);
   const problem = seatProblem(seats);
   const canRemove = seats.length > MIN_SEATS;
 
@@ -84,7 +88,7 @@ export default function SetupScreen({ onStart }: { onStart: (seats: PlayerSetup[
 
       <Button
         label="Start game"
-        onPress={() => onStart(toSetup(seats))}
+        onPress={() => onStart(seats)}
         disabled={problem !== null}
       />
     </ScrollView>
