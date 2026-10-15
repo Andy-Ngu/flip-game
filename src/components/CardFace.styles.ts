@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { FILL } from "./fill";
 import { CARD_H, CARD_W } from "../game/handLayout";
 
 export const styles = StyleSheet.create({
@@ -35,7 +36,7 @@ export const styles = StyleSheet.create({
   },
   // A 6 or 9 gets a line under it, like on road signs, so an upside-down card is never misread.
   underline: { textDecorationLine: "underline" },
-  middle: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  middle: { ...FILL, alignItems: "center", justifyContent: "center" },
   // The mark fills the card's width and is centered inside it, so it can never wrap or drift.
   // A line height a little taller than the text keeps symbols from different fonts level.
   center: {

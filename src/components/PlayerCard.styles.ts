@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { FILL } from "./fill";
 
 // Every color is set explicitly so the card looks the same in light and dark mode.
 const INK = "#111111";
@@ -20,7 +21,7 @@ export const styles = StyleSheet.create({
   },
   acting: { borderColor: BLUE, backgroundColor: "#EAF1FD" },
   out: { opacity: 0.6 },
-  flash: { ...StyleSheet.absoluteFillObject, borderRadius: 10 },
+  flash: { ...FILL, borderRadius: 10 },
 
   row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },

@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { FILL } from "./fill";
 import { CARD_H, CARD_W } from "../game/handLayout";
 
 export const styles = StyleSheet.create({
@@ -16,14 +17,14 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#000000",
   },
-  touch: { ...StyleSheet.absoluteFillObject },
+  touch: { ...FILL },
   dead: {
-    ...StyleSheet.absoluteFillObject,
+    ...FILL,
     borderRadius: 8,
     backgroundColor: "#1A1A1A",
   },
   // The sheen is a tall pale stripe, clipped to the card's rounded corners.
-  sheenClip: { ...StyleSheet.absoluteFillObject, borderRadius: 8, overflow: "hidden" },
+  sheenClip: { ...FILL, borderRadius: 8, overflow: "hidden" },
   sheen: {
     position: "absolute",
     top: -30,
