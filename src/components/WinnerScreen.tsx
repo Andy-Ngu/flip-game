@@ -43,7 +43,6 @@ export function WinnerScreen({ players, winners, onPlayAgain, onQuit }: Props) {
     <Animated.View entering={FadeIn.duration(300)} style={styles.overlay}>
       <View pointerEvents="none" style={styles.glowOuter} />
       <View pointerEvents="none" style={styles.glowInner} />
-      <Confetti />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
         <Animated.Text
@@ -88,6 +87,9 @@ export function WinnerScreen({ players, winners, onPlayAgain, onQuit }: Props) {
         <Button fill variant="secondary" label="Change players" onPress={onQuit} />
         <Button fill label="Play again" onPress={onPlayAgain} />
       </View>
+
+      {/* Last, so the paper falls in front of everything. Touches pass straight through it. */}
+      <Confetti />
     </Animated.View>
   );
 }

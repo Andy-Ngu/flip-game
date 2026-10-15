@@ -24,7 +24,7 @@ const LOGO_CARDS = [
 
 const OPEN = { damping: 12, stiffness: 90 };
 
-export default function TitleScreen({ onPlay }: { onPlay: () => void }) {
+export default function TitleScreen({ onPlay, onRules }: { onPlay: () => void; onRules: () => void }) {
   const float = useSharedValue(0);   // the whole logo drifts up and down, slowly
   const wiggle = useSharedValue(0);  // a little twist when you tap the logo
   const pulse = useSharedValue(1);   // the Play button breathes
@@ -100,6 +100,9 @@ export default function TitleScreen({ onPlay }: { onPlay: () => void }) {
             <Text allowFontScaling={false} style={styles.playText}>PLAY</Text>
           </Pressable>
         </Animated.View>
+        <Pressable style={styles.rulesLink} accessibilityRole="button" onPress={onRules}>
+          <Text allowFontScaling={false} style={styles.rulesText}>HOW TO PLAY</Text>
+        </Pressable>
       </Animated.View>
 
       <Text style={styles.footer}>3 to 8 players · pass and play · computer opponents</Text>

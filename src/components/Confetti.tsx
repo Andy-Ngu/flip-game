@@ -12,7 +12,7 @@ import { styles } from "./Confetti.styles";
 import { theme } from "./theme";
 
 const COLORS = [theme.gold, "#5BB4F0", "#FF7A85", "#5FD39A", theme.text];
-const PIECES = 28;
+const PIECES = 40;
 
 // Paper falling slowly behind the winner. Each piece has its own random column, size,
 // speed and spin, picked once when the screen opens.
@@ -21,11 +21,11 @@ export function Confetti() {
     () =>
       Array.from({ length: PIECES }, (_, i) => ({
         left: Math.random(),
-        width: 6 + Math.random() * 6,
-        height: 10 + Math.random() * 8,
+        width: 9 + Math.random() * 7,
+        height: 15 + Math.random() * 11,
         color: COLORS[i % COLORS.length],
-        delay: Math.random() * 2500,
-        duration: 3800 + Math.random() * 2800,
+        delay: Math.random() * 1200,
+        duration: 3000 + Math.random() * 2200,
         spin: (Math.random() < 0.5 ? -1 : 1) * (360 + Math.random() * 540),
         sway: 10 + Math.random() * 22,
       })),

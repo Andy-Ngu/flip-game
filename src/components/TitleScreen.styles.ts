@@ -1,8 +1,9 @@
 import { StyleSheet } from "react-native";
+import { theme } from "./theme";
 
 // The same navy and gold as the card backs and the app icon.
-export const NAVY = "#1B2440";
-export const GOLD = "#F2C14E";
+export const NAVY = theme.bg;
+export const GOLD = theme.gold;
 const CREAM = "#FBEBD9";
 
 // The logo is a fan of three cards, drawn at 2.2 times the size of a hand card.
@@ -55,7 +56,7 @@ export const styles = StyleSheet.create({
   titleBlock: { marginTop: 34, alignItems: "center" },
   titleTop: { fontSize: 46, lineHeight: 52, fontWeight: "900", letterSpacing: 9, color: CREAM },
   titleBottom: { fontSize: 46, lineHeight: 52, fontWeight: "900", letterSpacing: 9, color: GOLD },
-  tagline: { marginTop: 14, fontSize: 16, color: "#A9B4D6", textAlign: "center" },
+  tagline: { marginTop: 14, fontSize: 16, color: theme.textDim, textAlign: "center" },
 
   playWrap: { marginTop: 44, alignSelf: "stretch", alignItems: "center" },
   play: {
@@ -73,5 +74,8 @@ export const styles = StyleSheet.create({
   },
   playText: { fontSize: 20, fontWeight: "900", letterSpacing: 4, color: NAVY },
 
-  footer: { position: "absolute", bottom: 36, fontSize: 13, color: "#6F7BA3", textAlign: "center" },
+  rulesLink: { marginTop: 22, paddingVertical: 10, paddingHorizontal: 20 },
+  rulesText: { fontSize: 14, fontWeight: "800", letterSpacing: 3, color: theme.textDim },
+
+  footer: { position: "absolute", bottom: 36, fontSize: 13, color: theme.textFaint, textAlign: "center" },
 });

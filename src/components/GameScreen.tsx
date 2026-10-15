@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
-import Animated, { FadeIn, SlideInDown, ZoomIn } from "react-native-reanimated";
+import Animated, { FadeIn, SlideInDown } from "react-native-reanimated";
 import { diffEvents, feelFor } from "../game/events";
 import { scoreHand } from "../game/scoring";
 import {
@@ -9,10 +9,15 @@ import {
 import { Button } from "./Button";
 import { styles } from "./GameScreen.styles";
 import { playFeel } from "./haptics";
+import { HowToPlay } from "./HowToPlay";
 import { PlayerCard } from "./PlayerCard";
+import { RoundSummary } from "./RoundSummary";
+import { WinnerScreen } from "./WinnerScreen";
 
 // How long a computer player "thinks" before it moves, so you can follow along.
 const BOT_DELAY_MS = 900;
+// How long the table stays visible after a round ends, before the results appear.
+const RESULTS_DELAY_MS = 1600;
 
 // What to tell the player for each kind of card that needs a target.
 const PENDING_INFO = {
@@ -46,6 +51,10 @@ export default function GameScreen({ seats, onQuit }: Props) {
   // with a new Game object returned by the engine.
   const [game, setGame] = useState<Game>(() => newGame(seats));
   const [hapticsOn, setHapticsOn] = useState(true);
+  const [showRules, setShowRules] = useState(false);
+  const [roundNumber, setRoundNumber] = useState(1);
+  // At the end of a round the results cover the table. "See table" hides them for a look.
+  const [peeking, setPeeking] = useState(false);
   const { players } = game.round;
   const botsTurn = isBotTurn(game);
 
@@ -69,6 +78,27 @@ export default function GameScreen({ seats, onQuit }: Props) {
     if (hapticsOn) playFeel(feelFor(events, game.round.players));
   }, [game, hapticsOn]);
 
+  // The results board waits a moment after the last move, so you see the final card land
+  // (or the bust) before the board covers the table.
+  const [resultsReady, setResultsReady] = useState(false);
+  useEffect(() => {
+    setPeeking(false);
+    setResultsReady(false);
+    if (game.phase !== "roundOver") return;
+    const timer = setTimeout(() => setResultsReady(true), RESULTS_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [game.phase]);
+
+  function continueFromRound() {
+    setRoundNumber((n) => n + 1);
+    setGame(nextRound(game));
+  }
+
+  function playAgain() {
+    setRoundNumber(1);
+    setGame(newGame(seats));
+  }
+
   // Who is acting right now: whoever must answer a question, else whoever's turn it is.
   const acting = game.pending ? game.pending.actor : game.phase === "playing" ? game.current : -1;
 
@@ -87,6 +117,9 @@ export default function GameScreen({ seats, onQuit }: Props) {
           <View style={styles.headerLinks}>
             <Pressable onPress={() => setHapticsOn(!hapticsOn)}>
               <Text style={styles.link}>Haptics: {hapticsOn ? "On" : "Off"}</Text>
+            </Pressable>
+            <Pressable onPress={() => setShowRules(true)}>
+              <Text style={styles.link}>Rules</Text>
             </Pressable>
             <Pressable onPress={confirmQuit}>
               <Text style={styles.link}>Change players</Text>
@@ -155,22 +188,28 @@ export default function GameScreen({ seats, onQuit }: Props) {
           </View>
         )}
 
-        {game.phase === "roundOver" && (
-          <Button label="Score round and continue" onPress={() => setGame(nextRound(game))} />
-        )}
-
-        {game.phase === "gameOver" && (
-          <View style={{ gap: 8 }}>
-            <Animated.Text entering={ZoomIn.springify()} style={styles.winner}>
-              Winner: {game.winners.map((w) => w.name).join(" & ")}
-            </Animated.Text>
-            <View style={styles.row}>
-              <Button fill label="Play again" onPress={() => setGame(newGame(seats))} />
-              <Button fill variant="secondary" label="Change players" onPress={onQuit} />
-            </View>
+        {game.phase === "roundOver" && peeking && (
+          <View style={styles.row}>
+            <Button fill variant="secondary" label="Show results" onPress={() => setPeeking(false)} />
+            <Button fill label="Next round" onPress={continueFromRound} />
           </View>
         )}
       </View>
+
+      {game.phase === "roundOver" && resultsReady && !peeking && (
+        <RoundSummary
+          players={players}
+          round={roundNumber}
+          onContinue={continueFromRound}
+          onPeek={() => setPeeking(true)}
+        />
+      )}
+
+      {game.phase === "gameOver" && (
+        <WinnerScreen players={players} winners={game.winners} onPlayAgain={playAgain} onQuit={onQuit} />
+      )}
+
+      {showRules && <HowToPlay onClose={() => setShowRules(false)} />}
     </View>
   );
 }
