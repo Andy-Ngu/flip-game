@@ -2,7 +2,7 @@ import { TargetedKind } from "./round";
 import { scoreHand, uniqueNumberCount } from "./scoring";
 import { BotLevel, Card, Player } from "./types";
 
-const isSecondChance = (c: Card): boolean => c.kind === "action" && c.action === "secondChance";
+const isShield = (c: Card): boolean => c.kind === "action" && c.action === "shield";
 
 // How many copies of each number are still unaccounted for, going only by the
 // cards a player can see in front of everyone this round. A bot never peeks at
@@ -35,10 +35,10 @@ function hardDecision(players: Player[], i: number): "hit" | "stay" {
   }
 
   const hasDouble = me.hand.some((c) => c.kind === "modifier" && c.multiplier === 2);
-  const flip7Bonus = mine.size === 6 ? 15 * newCards : 0; // a 7th new number ends the round with +15
-  const risk = me.hand.some(isSecondChance) ? 0.2 : 1;     // Second Chance absorbs one bust
+  const sevenStackBonus = mine.size === 6 ? 15 * newCards : 0; // a 7th new number ends the round with +15
+  const risk = me.hand.some(isShield) ? 0.2 : 1;     // Shield absorbs one bust
 
-  const expectedGain = gainSum * (hasDouble ? 2 : 1) + flip7Bonus;
+  const expectedGain = gainSum * (hasDouble ? 2 : 1) + sevenStackBonus;
   const expectedLoss = bustCards * score * risk;
   return expectedGain > expectedLoss ? "hit" : "stay";
 }
@@ -58,7 +58,7 @@ const roundScore = (p: Player) => scoreHand(p);
 const numberSum = (p: Player) =>
   p.hand.reduce((sum, c) => sum + (c.kind === "number" ? c.value : 0), 0);
 
-// Which player gets a Freeze, Flip Three or spare Second Chance.
+// Which player gets a Time Out, Draw Three or spare Shield.
 // Matches the ChooseTarget signature the engine expects.
 export function botPickTarget(
   players: Player[],
@@ -73,24 +73,24 @@ export function botPickTarget(
   const best = (list: number[], key: (i: number) => number) =>
     list.reduce((a, b) => (key(b) > key(a) ? b : a));
 
-  if (card === "secondChance") {
+  if (card === "shield") {
     // A gift. Give it to the player who is furthest behind.
     return best(opponents, (i) => -players[i].totalScore);
   }
 
-  if (card === "freeze") {
-    // Lock in a strong row of our own, otherwise freeze the leader who
+  if (card === "timeOut") {
+    // Lock in a strong row of our own, otherwise time out the leader who
     // has the weakest row, so they bank very little.
     if (options.includes(actor) && roundScore(players[actor]) >= 25) return actor;
     return best(opponents, (i) => players[i].totalScore - 2 * roundScore(players[i]));
   }
 
-  // Flip Three: hand it to whoever is most likely to bust. Avoid players close
-  // to a Flip 7, since three free cards could win them the round.
+  // Draw Three: hand it to whoever is most likely to bust. Avoid players close
+  // to a Seven Stack, since three free cards could win them the round.
   const safe = opponents.filter((i) => uniqueNumberCount(players[i]) < 5);
   const pool = safe.length > 0 ? safe : opponents;
   return best(pool, (i) => {
     const p = players[i];
-    return uniqueNumberCount(p) * 2 + numberSum(p) / 10 - (p.hand.some(isSecondChance) ? 10 : 0);
+    return uniqueNumberCount(p) * 2 + numberSum(p) / 10 - (p.hand.some(isShield) ? 10 : 0);
   });
 }

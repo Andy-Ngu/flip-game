@@ -5,7 +5,7 @@ import { BotLevel } from "./types";
 export type SeatKind = "human" | BotLevel;
 export type Seat = { name: string; kind: SeatKind };
 
-export const MIN_SEATS = 3; // the rulebook says Flip 7 is for 3 or more players
+export const MIN_SEATS = 3; // the game is for 3 or more players
 export const MAX_SEATS = 8;
 
 const BOT_NAMES = ["Robo", "Bolt", "Cleo", "Dot", "Echo", "Fizz", "Gus", "Hex"];

@@ -33,7 +33,7 @@ export const styles = StyleSheet.create({
   botBannerText: { fontSize: 16, fontWeight: "600", color: INK },
   note: { fontSize: 14, color: MUTED },
 
-  // Question panel for Freeze, Flip Three and Second Chance.
+  // Question panel for Time Out, Draw Three and Shield.
   actionPanel: {
     borderWidth: 2,
     borderColor: BLUE,

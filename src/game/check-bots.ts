@@ -9,7 +9,7 @@ function check(name: string, ok: boolean) {
 }
 
 const num = (value: number): Card => ({ kind: "number", value });
-const secondChance: Card = { kind: "action", action: "secondChance" };
+const shield: Card = { kind: "action", action: "shield" };
 const mk = (id: string, hand: Card[] = [], bot?: BotLevel, totalScore = 0): Player =>
   ({ id, name: id, hand, totalScore, status: "playing", ...(bot ? { bot } : {}) });
 
@@ -23,19 +23,19 @@ check("hard plays safe with one low card", botDecide([mk("A", [num(2)], "hard")]
 check("hard stays on a big hand of common numbers",
   botDecide([mk("A", [num(12), num(11), num(10), num(9)], "hard")], 0) === "stay");
 const risky = [mk("A", [num(12), num(11), num(10)], "hard")];
-const withSecond = [mk("A", [num(12), num(11), num(10), secondChance], "hard")];
+const withSecond = [mk("A", [num(12), num(11), num(10), shield], "hard")];
 check("hard stays on 12, 11, 10 with no safety net", botDecide(risky, 0) === "stay");
-check("hard keeps hitting that same hand while holding a Second Chance", botDecide(withSecond, 0) === "hit");
+check("hard keeps hitting that same hand while holding a Shield", botDecide(withSecond, 0) === "hit");
 
 console.log("\n--- Choosing targets ---");
 const table = [mk("Me", [num(5)], "hard", 50), mk("Leader", [num(2)], undefined, 150), mk("Behind", [num(9)], undefined, 10)];
-check("Freeze goes to the leader with the weak row", botPickTarget(table, 0, "freeze", [0, 1, 2]) === 1);
+check("Time Out goes to the leader with the weak row", botPickTarget(table, 0, "timeOut", [0, 1, 2]) === 1);
 const strong = [mk("Me", [num(12), num(11), num(10)], "hard", 50), mk("Leader", [num(2)], undefined, 150)];
-check("Freeze yourself to lock in a strong row", botPickTarget(strong, 0, "freeze", [0, 1]) === 0);
-check("a spare Second Chance goes to the player furthest behind", botPickTarget(table, 0, "secondChance", [1, 2]) === 2);
+check("Time Out yourself to lock in a strong row", botPickTarget(strong, 0, "timeOut", [0, 1]) === 0);
+check("a spare Shield goes to the player furthest behind", botPickTarget(table, 0, "shield", [1, 2]) === 2);
 const flip = [mk("Me", [], "hard"), mk("Full", [num(1), num(2), num(3), num(4), num(5)]), mk("Loaded", [num(12), num(11), num(10)])];
-check("Flip Three avoids a player close to Flip 7", botPickTarget(flip, 0, "flipThree", [0, 1, 2]) === 2);
-check("with one legal option it takes it", botPickTarget(flip, 0, "freeze", [0]) === 0);
+check("Draw Three avoids a player close to Seven Stack", botPickTarget(flip, 0, "drawThree", [0, 1, 2]) === 2);
+check("with one legal option it takes it", botPickTarget(flip, 0, "timeOut", [0]) === 0);
 
 console.log("\n--- Bots in the game loop ---");
 let g = newGame([{ name: "You" }, { name: "Bot", bot: "hard" }]);

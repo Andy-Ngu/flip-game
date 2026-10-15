@@ -10,7 +10,7 @@ export type Phase = "playing" | "roundOver" | "gameOver";
 // The game is waiting for a human to pick a player.
 export type Pending = {
   actor: number;          // who received the card
-  card: TargetedKind;     // freeze, flipThree or secondChance
+  card: TargetedKind;     // timeOut, drawThree or shield
   options: number[];      // players that can be chosen
 };
 
@@ -141,7 +141,7 @@ export function isBotTurn(game: Game): boolean {
   return who >= 0 && game.round.players[who].bot !== undefined;
 }
 
-const CARD_NAME = { freeze: "Freeze", flipThree: "Flip Three", secondChance: "a spare Second Chance" } as const;
+const CARD_NAME = { timeOut: "Time Out", drawThree: "Draw Three", shield: "a spare Shield" } as const;
 
 // Make ONE computer move. The screen calls this on a timer so the human can
 // follow what happened, instead of the bots finishing everything instantly.

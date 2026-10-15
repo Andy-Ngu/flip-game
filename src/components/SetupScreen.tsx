@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import {
-    addSeat, defaultSeats, MAX_SEATS, MIN_SEATS, removeSeat, Seat, SeatKind,
-    seatProblem, toSetup, updateSeat,
+  addSeat, defaultSeats, MAX_SEATS, MIN_SEATS, removeSeat, Seat, SeatKind,
+  seatProblem, toSetup, updateSeat,
 } from "../game/seats";
 import { PlayerSetup } from "../game/session";
 import { Button } from "./Button";
@@ -29,7 +29,7 @@ export default function SetupScreen({ onStart }: { onStart: (seats: PlayerSetup[
       <Text style={styles.title}>Set up your game</Text>
       <Text style={styles.help}>
         Choose Human for each person playing on this phone, or Easy, Medium or Hard for a
-        computer player. Flip 7 needs at least {MIN_SEATS} players.
+        computer player. Seven Stack needs at least {MIN_SEATS} players.
       </Text>
 
       {seats.map((seat, i) => (

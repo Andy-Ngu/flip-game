@@ -16,20 +16,20 @@ const BOT_DELAY_MS = 900;
 
 // What to tell the player for each kind of card that needs a target.
 const PENDING_INFO = {
-  freeze: {
-    title: "Freeze!",
+  timeOut: {
+    title: "Time Out!",
     rule: "The player you pick banks their points and is out for the rest of the round.",
-    instruction: "Choose who to freeze:",
-    verb: "Freeze",
+    instruction: "Choose who to time out:",
+    verb: "Time Out",
   },
-  flipThree: {
-    title: "Flip Three!",
-    rule: "The player you pick must flip the next 3 cards, and can't stop. They bust if they flip a duplicate.",
-    instruction: "Choose who flips three cards:",
-    verb: "Flip 3 on",
+  drawThree: {
+    title: "Draw Three!",
+    rule: "The player you pick must draw the next 3 cards, and can't stop. They bust if they draw a duplicate.",
+    instruction: "Choose who draws three cards:",
+    verb: "Draw 3 on",
   },
-  secondChance: {
-    title: "Spare Second Chance",
+  shield: {
+    title: "Spare Shield",
     rule: "Each player can hold only one. Give this one to a player who doesn't have one yet.",
     instruction: "Choose who gets it:",
     verb: "Give to",
@@ -83,7 +83,7 @@ export default function GameScreen({ seats, onQuit }: Props) {
     <View style={styles.screen}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Flip Game</Text>
+          <Text style={styles.title}>Stack Seven</Text>
           <View style={styles.headerLinks}>
             <Pressable onPress={() => setHapticsOn(!hapticsOn)}>
               <Text style={styles.link}>Haptics: {hapticsOn ? "On" : "Off"}</Text>

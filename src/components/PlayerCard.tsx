@@ -1,23 +1,23 @@
 import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import Animated, {
-  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSequence,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { describeCard } from "../game/describe";
 import { scoreHand } from "../game/scoring";
 import { Player } from "../game/types";
-import { BUST_RED, CARD_COLORS, FREEZE_BLUE, styles } from "./PlayerCard.styles";
+import { Hand } from "./Hand";
+import { BUST_RED, TIMEOUT_BLUE, styles } from "./PlayerCard.styles";
 
 const STATUS_LABEL = {
   playing: "",
   stayed: "Stayed",
   busted: "BUST",
-  frozen: "Frozen",
+  timedOut: "Timed out",
 } as const;
 
 type Props = {
@@ -32,7 +32,9 @@ export function PlayerCard({ player: p, acting, choosing, dealer }: Props) {
   // even while the JavaScript side is busy.
   const shake = useSharedValue(0);
   const flash = useSharedValue(0);
+  const pop = useSharedValue(1);
   const [flashColor, setFlashColor] = useState(BUST_RED);
+  const roundScore = scoreHand(p);
 
   // Play an effect when this player's status changes.
   useEffect(() => {
@@ -44,14 +46,20 @@ export function PlayerCard({ player: p, acting, choosing, dealer }: Props) {
         withTiming(0, { duration: 60 })
       );
       flash.value = withSequence(withTiming(0.35, { duration: 120 }), withTiming(0, { duration: 700 }));
-    } else if (p.status === "frozen") {
-      setFlashColor(FREEZE_BLUE);
+    } else if (p.status === "timedOut") {
+      setFlashColor(TIMEOUT_BLUE);
       flash.value = withSequence(withTiming(0.4, { duration: 150 }), withTiming(0, { duration: 900 }));
     }
   }, [p.status]);
 
+  // The round score swells and settles each time it changes, so points feel earned.
+  useEffect(() => {
+    pop.value = withSequence(withTiming(1.4, { duration: 90 }), withSpring(1, { damping: 7, stiffness: 180 }));
+  }, [roundScore]);
+
   const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
+  const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
 
   return (
     <Animated.View
@@ -75,23 +83,18 @@ export function PlayerCard({ player: p, acting, choosing, dealer }: Props) {
         {dealer ? "  ·  dealer" : ""}
       </Text>
 
-      <View style={styles.hand}>
-        {p.hand.length === 0 && <Text style={styles.empty}>No cards yet</Text>}
-        {p.hand.map((card, k) => (
-          // The key includes the card so a new card in the same spot animates in again.
-          <Animated.View
-            key={`${k}-${describeCard(card)}`}
-            entering={FadeInDown.duration(280)}
-            style={[styles.card, { backgroundColor: CARD_COLORS[card.kind] }]}
-          >
-            <Text style={styles.cardText}>{describeCard(card)}</Text>
-          </Animated.View>
-        ))}
-      </View>
+      <Hand cards={p.hand} dead={p.status === "busted"} active={acting} />
 
-      <Text style={[styles.status, p.status === "busted" && styles.bust]}>
-        This round: {scoreHand(p)} {STATUS_LABEL[p.status]}
-      </Text>
+      <View style={styles.statusRow}>
+        <Text style={[styles.status, p.status === "busted" && styles.bust]}>This round: </Text>
+        <Animated.Text style={[styles.roundScore, p.status === "busted" && styles.bust, popStyle]}>
+          {roundScore}
+        </Animated.Text>
+        <Text style={[styles.status, p.status === "busted" && styles.bust]}>
+          {" "}
+          {STATUS_LABEL[p.status]}
+        </Text>
+      </View>
     </Animated.View>
   );
 }

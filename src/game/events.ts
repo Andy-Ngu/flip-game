@@ -7,18 +7,18 @@ import { Card, Player } from "./types";
 // inside the game rules.
 export type GameEvent =
   | { kind: "card"; player: number; card: Card }
-  | { kind: "saved"; player: number }   // a Second Chance was used up
+  | { kind: "saved"; player: number }   // a Shield was used up
   | { kind: "stay"; player: number }
-  | { kind: "frozen"; player: number }
+  | { kind: "timedOut"; player: number }
   | { kind: "bust"; player: number }
-  | { kind: "flip7"; player: number }
+  | { kind: "sevenStack"; player: number }
   | { kind: "newRound" }
   | { kind: "gameOver"; winners: number[] };
 
 // How a move should feel in the hand, from the faintest tap to the strongest buzz.
 export type Feel = "tick" | "light" | "medium" | "warning" | "heavy" | "success" | "error";
 
-const isSecondChance = (c: Card): boolean => c.kind === "action" && c.action === "secondChance";
+const isShield = (c: Card): boolean => c.kind === "action" && c.action === "shield";
 
 export function diffEvents(prev: Game, next: Game): GameEvent[] {
   if (prev === next) return [];
@@ -40,22 +40,22 @@ export function diffEvents(prev: Game, next: Game): GameEvent[] {
   after.forEach((q, i) => {
     const p = before[i];
 
-    // A used Second Chance leaves the hand, so count it as removed and add it back
+    // A used Shield leaves the hand, so count it as removed and add it back
     // when working out how many cards arrived.
-    const secondChanceUsed = p.hand.some(isSecondChance) && !q.hand.some(isSecondChance) && q.hand.length < p.hand.length;
-    const removed = secondChanceUsed ? 1 : 0;
+    const shieldUsed = p.hand.some(isShield) && !q.hand.some(isShield) && q.hand.length < p.hand.length;
+    const removed = shieldUsed ? 1 : 0;
     const added = q.hand.length - p.hand.length + removed;
     for (const card of q.hand.slice(q.hand.length - Math.max(0, added))) {
       events.push({ kind: "card", player: i, card });
     }
-    if (secondChanceUsed && q.status !== "busted") events.push({ kind: "saved", player: i });
+    if (shieldUsed && q.status !== "busted") events.push({ kind: "saved", player: i });
 
     if (p.status !== q.status) {
       if (q.status === "busted") events.push({ kind: "bust", player: i });
-      else if (q.status === "frozen") events.push({ kind: "frozen", player: i });
+      else if (q.status === "timedOut") events.push({ kind: "timedOut", player: i });
       else if (q.status === "stayed") events.push({ kind: "stay", player: i });
     }
-    if (uniqueNumberCount(q) >= 7 && uniqueNumberCount(p) < 7) events.push({ kind: "flip7", player: i });
+    if (uniqueNumberCount(q) >= 7 && uniqueNumberCount(p) < 7) events.push({ kind: "sevenStack", player: i });
   });
   return events;
 }
@@ -69,9 +69,9 @@ export function feelFor(events: GameEvent[], players: Player[]): Feel | null {
   const feels: Feel[] = events.map((e): Feel => {
     switch (e.kind) {
       case "gameOver": return e.winners.some(human) ? "success" : "warning";
-      case "flip7": return human(e.player) ? "success" : "heavy";
+      case "sevenStack": return human(e.player) ? "success" : "heavy";
       case "bust": return human(e.player) ? "error" : "warning";
-      case "frozen": return "heavy";
+      case "timedOut": return "heavy";
       case "saved": return "medium";
       case "stay": return "light";
       case "newRound": return "light";
