@@ -11,4 +11,6 @@ export type Player = {
   status: "playing" | "stayed" | "busted" | "timedOut";
   bot?: BotLevel; // set for computer players, left out for humans
 };
-export type DeckState = { drawPile: Card[]; discardPile: Card[] };
+// `seed` makes reshuffling repeatable: the same deck state always reshuffles the same way.
+// That matters because a paused move is re-run from the start (see session.ts).
+export type DeckState = { drawPile: Card[]; discardPile: Card[]; seed?: number };

@@ -73,6 +73,33 @@ check("nobody over 200 keeps the game going", nextRound(roundOverWith(150, 120))
 check("199 is not enough to win", nextRound(roundOverWith(199, 100)).phase !== "gameOver");
 check("exactly 200 wins", nextRound(roundOverWith(200, 100)).phase === "gameOver");
 
+console.log("\n--- Reshuffling in the middle of a turn ---");
+// The draw pile is empty, so the first draw reshuffles the discard pile. A paused move is
+// re-run from the start after each answer, so the reshuffle has to come out the same
+// every time. Otherwise the cards change between the question and the answer.
+let reshuffleCrashed = false, reshuffleStable = true, reshuffleQuestions = 0;
+for (let n = 0; n < 300; n++) {
+  const discard = [drawThree, drawThree, timeOut, timeOut, shield, num(2), num(3), num(4), num(5), num(6), num(7), num(8)];
+  let game = gameWith([mk("A", [num(1)]), mk("B"), mk("C"), mk("D")], []);
+  game.round.deck = { drawPile: [], discardPile: discard, seed: n };
+  try {
+    game = act(game, "hit");
+    while (game.pending) {
+      reshuffleQuestions++;
+      const o = game.pending.options;
+      const pick = o[o.length - 1];
+      const first = chooseTarget(game, pick), second = chooseTarget(game, pick);
+      if (JSON.stringify(first.round) !== JSON.stringify(second.round)) reshuffleStable = false;
+      game = first;
+    }
+  } catch {
+    reshuffleCrashed = true;
+  }
+}
+check("answering questions after a reshuffle never crashes", !reshuffleCrashed);
+check("re-running a paused move gives the same cards", reshuffleStable);
+check("the reshuffle test really asked questions", reshuffleQuestions > 100);
+
 // ---------- stress test: whole games where every question gets answered ----------
 let allGamesEnded = true, allCardsKept = true, turnsAlwaysValid = true, questions = 0;
 function settle(game: Game): Game {

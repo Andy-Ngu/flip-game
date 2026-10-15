@@ -1,16 +1,21 @@
-import { shuffle } from "./deck";
+import { seededRandom, shuffle } from "./deck";
 import { hasSevenStack, scoreHand } from "./scoring";
 import { Card, DeckState, Player } from "./types";
 export function drawCard(deck: DeckState): { card: Card; deck: DeckState } {
   let drawPile = deck.drawPile;
   let discardPile = deck.discardPile;
+  let seed = deck.seed;
   if (drawPile.length === 0) {
     if (discardPile.length === 0) throw new Error("No cards left to draw");
-    drawPile = shuffle(discardPile);
+    // The reshuffle is seeded, not random, so re-running the same move (which the session
+    // does after each question) reshuffles identically. The seed moves on for the next one.
+    const used = seed ?? 0;
+    drawPile = shuffle(discardPile, seededRandom(used));
     discardPile = [];
+    seed = used + 1;
   }
   const [card, ...rest] = drawPile;
-  return { card, deck: { drawPile: rest, discardPile } };
+  return { card, deck: { ...deck, drawPile: rest, discardPile, ...(seed !== undefined ? { seed } : {}) } };
 }
 export function isDuplicate(hand: Card[], card: Card): boolean {
   if (card.kind !== "number") return false;

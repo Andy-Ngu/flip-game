@@ -99,7 +99,7 @@ export function newGame(setup: (string | PlayerSetup)[]): Game {
     const { name, bot } = typeof s === "string" ? { name: s, bot: undefined } : s;
     return { id: `p${i + 1}`, name, hand: [], totalScore: 0, status: "playing", ...(bot ? { bot } : {}) };
   });
-  const deck = { drawPile: shuffle(createDeck()), discardPile: [] };
+  const deck = { drawPile: shuffle(createDeck()), discardPile: [], seed: Math.floor(Math.random() * 2 ** 31) };
   return beginRound({ players, deck }, 0);
 }
 
