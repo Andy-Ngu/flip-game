@@ -1,3 +1,4 @@
+import { isDuplicate } from "./rules";
 import { uniqueNumberCount } from "./scoring";
 import { Game } from "./session";
 import { Card, Player } from "./types";
@@ -7,7 +8,7 @@ import { Card, Player } from "./types";
 // inside the game rules.
 export type GameEvent =
   | { kind: "card"; player: number; card: Card }
-  | { kind: "saved"; player: number }   // a Shield was used up
+  | { kind: "saved"; player: number; shield: Card; duplicate: Card | null } // a Shield was used up, blocking this duplicate
   | { kind: "stay"; player: number }
   | { kind: "timedOut"; player: number }
   | { kind: "bust"; player: number }
@@ -48,7 +49,9 @@ export function diffEvents(prev: Game, next: Game): GameEvent[] {
     for (const card of q.hand.slice(q.hand.length - Math.max(0, added))) {
       events.push({ kind: "card", player: i, card });
     }
-    if (shieldUsed && q.status !== "busted") events.push({ kind: "saved", player: i });
+    if (shieldUsed && q.status !== "busted") {
+      events.push({ kind: "saved", player: i, shield: p.hand.find(isShield)!, duplicate: blockedCard(prev, next, p) });
+    }
 
     if (p.status !== q.status) {
       if (q.status === "busted") events.push({ kind: "bust", player: i });
@@ -58,6 +61,20 @@ export function diffEvents(prev: Game, next: Game): GameEvent[] {
     if (uniqueNumberCount(q) >= 7 && uniqueNumberCount(p) < 7) events.push({ kind: "sevenStack", player: i });
   });
   return events;
+}
+
+// The duplicate that a Shield blocked. It never joins the hand, so look for it among the cards
+// that just went to the discard pile: the last number card matching one the player holds.
+// If the discard pile was reshuffled during the move we can't tell, and return null.
+function blockedCard(prev: Game, next: Game, before: Player): Card | null {
+  const was = prev.round.deck.discardPile.length;
+  const now = next.round.deck.discardPile;
+  if (now.length <= was) return null;
+  const added = now.slice(was);
+  for (let k = added.length - 1; k >= 0; k--) {
+    if (isDuplicate(before.hand, added[k])) return added[k];
+  }
+  return null;
 }
 
 const INTENSITY: Feel[] = ["tick", "light", "medium", "warning", "heavy", "success", "error"];

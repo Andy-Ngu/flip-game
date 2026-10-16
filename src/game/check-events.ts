@@ -38,6 +38,11 @@ check("staying is a stay event", ev.length === 1 && ev[0].kind === "stay");
 const saveFrom = gameWith([mk("A", [num(7), shield]), mk("B"), mk("C")], [num(7)]);
 ev = diffEvents(saveFrom, act(saveFrom, "hit"));
 check("a Shield rescue is 'saved', not a bust", kinds(ev).includes("saved") && !kinds(ev).includes("bust"));
+const savedEv = ev.find((e) => e.kind === "saved");
+check("the saved event names the Shield that was used",
+  savedEv?.kind === "saved" && savedEv.shield.kind === "action" && savedEv.shield.action === "shield");
+check("the saved event carries the duplicate that was blocked",
+  savedEv?.kind === "saved" && savedEv.duplicate?.kind === "number" && savedEv.duplicate.value === 7);
 check("a rescue adds no card", !kinds(ev).includes("card"));
 
 const timeOutFrom = act(gameWith([mk("A", [num(1)]), mk("B"), mk("C")], [timeOut, num(9)]), "hit");
@@ -71,7 +76,7 @@ check("a card is the faintest tick", feel([{ kind: "card", player: 1, card: num(
 check("your own bust is the strongest error buzz", feel([{ kind: "bust", player: 0 }]) === "error");
 check("a computer's bust is only a warning", feel([{ kind: "bust", player: 1 }]) === "warning");
 check("a time out feels heavy", feel([{ kind: "timedOut", player: 2 }]) === "heavy");
-check("a rescue feels medium", feel([{ kind: "saved", player: 0 }]) === "medium");
+check("a rescue feels medium", feel([{ kind: "saved", player: 0, shield, duplicate: null }]) === "medium");
 check("your seven stack is a success", feel([{ kind: "sevenStack", player: 0 }]) === "success");
 check("winning the game is a success", feel([{ kind: "gameOver", winners: [0] }]) === "success");
 check("losing the game is a warning", feel([{ kind: "gameOver", winners: [2] }]) === "warning");

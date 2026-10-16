@@ -1,6 +1,6 @@
 import { GameEvent } from "./events";
 import { soundsFor } from "./sounds";
-import { Player } from "./types";
+import { Card, Player } from "./types";
 
 let failures = 0;
 function check(name: string, ok: boolean) {
@@ -11,6 +11,8 @@ function check(name: string, ok: boolean) {
 const human: Player = { id: "h", name: "H", hand: [], totalScore: 0, status: "playing" };
 const bot: Player = { ...human, id: "b", name: "B", bot: "easy" };
 const players = [human, bot, { ...bot, id: "c", name: "C" }];
+const shield: Card = { kind: "action", action: "shield" };
+const saved = (player: number): GameEvent => ({ kind: "saved", player, shield, duplicate: null });
 const card = (player: number): GameEvent => ({ kind: "card", player, card: { kind: "number", value: 3 } });
 const names = (events: GameEvent[]) => soundsFor(events, players).map((c) => c.sound).join();
 
@@ -24,7 +26,7 @@ check("a bust is a flick, then the bust sound", bust.map((c) => c.sound).join() 
 check("the bust lands after the card", bust[1].at > bust[0].at);
 
 check("a Shield rescue is a flick then the shield ting",
-  names([card(0), { kind: "saved", player: 0 }]) === "draw,shield");
+  names([card(0), saved(0)]) === "draw,shield");
 check("a Time Out sounds the time-out blips", names([{ kind: "timedOut", player: 1 }]) === "timeOut");
 
 // ---- Draw Three ----

@@ -7,6 +7,7 @@ import { scoreHand } from "../game/scoring";
 import {
   act, botStep, chooseTarget, Game, isBotTurn, newGame, nextRound, PlayerSetup,
 } from "../game/session";
+import { Card } from "../game/types";
 import { Button } from "./Button";
 import { styles } from "./GameScreen.styles";
 import { playFeel } from "./haptics";
@@ -60,6 +61,11 @@ export default function GameScreen({ seats, hapticsOn, onHapticsChange, soundOn,
   const [roundNumber, setRoundNumber] = useState(1);
   // At the end of a round the results cover the table. "See table" hides them for a look.
   const [peeking, setPeeking] = useState(false);
+  // While a Shield is blocking a duplicate, this says who and which cards (see ShieldBlock).
+  const [shieldBlock, setShieldBlock] = useState<
+    { player: number; shield: Card; duplicate: Card | null; key: number } | null
+  >(null);
+  const blockCount = useRef(0);
   const { players } = game.round;
   const botsTurn = isBotTurn(game);
   const { play, playCues } = useSounds(soundOn);
@@ -83,6 +89,11 @@ export default function GameScreen({ seats, hapticsOn, onHapticsChange, soundOn,
     previous.current = game;
     if (hapticsOn) playFeel(feelFor(events, game.round.players));
     playCues(soundsFor(events, game.round.players));
+    for (const e of events) {
+      if (e.kind === "saved") {
+        setShieldBlock({ player: e.player, shield: e.shield, duplicate: e.duplicate, key: ++blockCount.current });
+      }
+    }
   }, [game, hapticsOn, playCues]);
 
   // The first deal of the game. (Later rounds are dealt by a state change, which the
@@ -154,6 +165,8 @@ export default function GameScreen({ seats, hapticsOn, onHapticsChange, soundOn,
             acting={i === acting}
             choosing={game.pending !== null}
             dealer={i === game.dealer}
+            shieldBlock={shieldBlock?.player === i ? shieldBlock : null}
+            onShieldBlockDone={() => setShieldBlock(null)}
           />
         ))}
       </ScrollView>

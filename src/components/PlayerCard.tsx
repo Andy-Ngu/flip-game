@@ -9,9 +9,10 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { scoreHand } from "../game/scoring";
-import { Player } from "../game/types";
+import { Card, Player } from "../game/types";
 import { Hand } from "./Hand";
 import { BUST_RED, TIMEOUT_BLUE, styles } from "./PlayerCard.styles";
+import { ShieldBlock } from "./ShieldBlock";
 
 const STATUS_LABEL = {
   playing: "",
@@ -25,9 +26,11 @@ type Props = {
   acting: boolean;    // this player is the one who must act right now
   choosing: boolean;  // ...and they are picking a target, not hitting or staying
   dealer: boolean;
+  shieldBlock?: { shield: Card; duplicate: Card | null; key: number } | null; // set while a Shield is blocking a duplicate
+  onShieldBlockDone?: () => void;
 };
 
-export function PlayerCard({ player: p, acting, choosing, dealer }: Props) {
+export function PlayerCard({ player: p, acting, choosing, dealer, shieldBlock, onShieldBlockDone }: Props) {
   // Shared values live on the UI thread, so these animations stay smooth
   // even while the JavaScript side is busy.
   const shake = useSharedValue(0);
@@ -95,6 +98,15 @@ export function PlayerCard({ player: p, acting, choosing, dealer }: Props) {
           {STATUS_LABEL[p.status]}
         </Text>
       </View>
+
+      {shieldBlock && (
+        <ShieldBlock
+          key={shieldBlock.key}
+          shield={shieldBlock.shield}
+          duplicate={shieldBlock.duplicate}
+          onDone={onShieldBlockDone ?? (() => {})}
+        />
+      )}
     </Animated.View>
   );
 }
