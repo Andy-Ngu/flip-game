@@ -1,5 +1,7 @@
 # Stack Seven
 
+[![CI](https://github.com/Andy-Ngu/stack-seven/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Andy-Ngu/stack-seven/actions/workflows/ci.yml)
+
 A push-your-luck card game for 3 to 8 players, built with React Native, Expo and TypeScript. Play against 2 to 7 computer players at three skill levels; online tables are next on the roadmap.
 
 On your turn you either **hit** (draw a card) or **stay** (bank your points). Draw a number you already hold and you bust, scoring nothing for the round. Collect seven different numbers and you complete a **Seven Stack** for a bonus and end the round on the spot. The first player to reach the winning score (150, 200 or 250, your choice) wins.
