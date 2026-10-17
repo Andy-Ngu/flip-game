@@ -175,7 +175,7 @@ The screens are checked with the TypeScript compiler (`npx tsc --noEmit`) and by
 
 ### Continuous integration
 
-Every push to `main` and every pull request runs `.github/workflows/ci.yml` on GitHub Actions, as two independent jobs:
+Every push to the main branch and every pull request runs `.github/workflows/ci.yml` on GitHub Actions, as two independent jobs:
 
 - **Type-check and tests:** `npx tsc --noEmit`, then `npm test`.
 - **Build check:** `npx expo export --platform android`, the bundling step Expo does before an app is built, so a missing file or a broken import fails here instead of on a phone.

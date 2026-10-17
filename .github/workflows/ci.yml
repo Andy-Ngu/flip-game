@@ -1,4 +1,4 @@
-# Runs on every push to main and on every pull request.
+# Runs on every push to main (or master, whichever the repository calls its main branch) and on every pull request.
 #
 #   checks  type-checks the app with the TypeScript compiler and runs every test suite (npm test)
 #   bundle  builds the Android JavaScript bundle, the same step Expo does before an app is built, so a missing
@@ -10,7 +10,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
 
 # A new push cancels the run still going for the previous one on the same branch.
