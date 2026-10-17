@@ -1,53 +1,71 @@
+import { shuffle } from "./deck";
+import { ClockSeconds, DEFAULT_CLOCK, isClockSeconds } from "./clock";
+import { COLORS, ROBOT } from "./profile";
+import { DEFAULT_TARGET, isTarget, Target } from "./scoring";
 import { PlayerSetup } from "./session";
-import { BotLevel } from "./types";
+import { BotLevel, Look } from "./types";
 
-// One seat on the setup screen: a human, or a computer player at some level.
-export type SeatKind = "human" | BotLevel;
-export type Seat = { name: string; kind: SeatKind };
-
-export const MIN_SEATS = 3; // the game is for 3 or more players
+// A table is 3 to 8 seats. You take the first seat and computer players fill the rest.
+// (Online tables will have several people; the same limits apply.)
+export const MIN_SEATS = 3;
 export const MAX_SEATS = 8;
+export const DEFAULT_SEATS = 6;
+export const SEAT_COUNTS = [3, 4, 5, 6, 7, 8] as const;
 
-const BOT_NAMES = ["Robo", "Bolt", "Cleo", "Dot", "Echo", "Fizz", "Gus", "Hex"];
+export function isSeatCount(x: unknown): x is number {
+  return typeof x === "number" && Number.isInteger(x) && x >= MIN_SEATS && x <= MAX_SEATS;
+}
 
-// One human against two computer players.
-export function defaultSeats(): Seat[] {
+export const BOT_LEVELS: BotLevel[] = ["easy", "medium", "hard"];
+export const DEFAULT_BOT_LEVEL: BotLevel = "medium";
+export const BOT_LEVEL_LABEL: Record<BotLevel, string> = { easy: "Easy", medium: "Normal", hard: "Hard" };
+
+export const isBotLevel = (x: unknown): x is BotLevel =>
+  typeof x === "string" && (BOT_LEVELS as string[]).includes(x);
+
+// What the Create table screen chooses.
+export type TableSetup = {
+  seats: number;        // 3 to 8, counting you
+  botLevel: BotLevel;   // how well the computer players play
+  target: Target;       // the score that wins: 150, 200 or 250
+  clock: ClockSeconds;  // seconds to hit or stay: 15, 30 or 60
+};
+
+export const DEFAULT_TABLE: TableSetup = {
+  seats: DEFAULT_SEATS,
+  botLevel: DEFAULT_BOT_LEVEL,
+  target: DEFAULT_TARGET,
+  clock: DEFAULT_CLOCK,
+};
+
+// Whatever was stored, as a table the app can trust. Each choice is checked on its own,
+// and anything unusable falls back to the default.
+export function parseTable(raw: unknown): TableSetup {
+  if (typeof raw !== "object" || raw === null) return { ...DEFAULT_TABLE };
+  const r = raw as Record<string, unknown>;
+  return {
+    seats: isSeatCount(r.seats) ? r.seats : DEFAULT_TABLE.seats,
+    botLevel: isBotLevel(r.botLevel) ? r.botLevel : DEFAULT_TABLE.botLevel,
+    target: isTarget(r.target) ? r.target : DEFAULT_TABLE.target,
+    clock: isClockSeconds(r.clock) ? r.clock : DEFAULT_TABLE.clock,
+  };
+}
+
+// The names of the computer players. A full table needs seven of them.
+export const BOT_NAMES = ["Robo", "Bolt", "Cleo", "Dot", "Echo", "Fizz", "Gus", "Hex"] as const;
+
+// The look of the computer player in bot number `index` (0 for the first). Colours are handed out
+// in order starting just after yours, so nobody at the table shares your colour.
+export function botLook(index: number, yourColor: string): Look {
+  const start = Math.max(0, (COLORS as readonly string[]).indexOf(yourColor));
+  return { character: ROBOT, color: COLORS[(start + 1 + index) % COLORS.length] };
+}
+
+// The players for a new offline game: you in seat 0, then computer players.
+export function tableSetup(table: TableSetup, you: { name: string; look: Look }, random: () => number = Math.random): PlayerSetup[] {
+  const bots = shuffle([...BOT_NAMES], random).slice(0, table.seats - 1);
   return [
-    { name: "You", kind: "human" },
-    { name: "Robo", kind: "hard" },
-    { name: "Bolt", kind: "medium" },
+    { name: you.name, look: you.look },
+    ...bots.map((name, i): PlayerSetup => ({ name, bot: table.botLevel, look: botLook(i, you.look.color) })),
   ];
-}
-
-// Add a medium computer player with the next unused name.
-export function addSeat(seats: Seat[]): Seat[] {
-  if (seats.length >= MAX_SEATS) return seats;
-  const used = new Set(seats.map((s) => s.name.trim().toLowerCase()));
-  const name = BOT_NAMES.find((n) => !used.has(n.toLowerCase())) ?? `Player ${seats.length + 1}`;
-  return [...seats, { name, kind: "medium" }];
-}
-
-export function removeSeat(seats: Seat[], index: number): Seat[] {
-  if (seats.length <= MIN_SEATS) return seats;
-  return seats.filter((_, i) => i !== index);
-}
-
-export function updateSeat(seats: Seat[], index: number, change: Partial<Seat>): Seat[] {
-  return seats.map((s, i) => (i === index ? { ...s, ...change } : s));
-}
-
-// Why the game can't start yet, or null if it can.
-export function seatProblem(seats: Seat[]): string | null {
-  if (seats.length < MIN_SEATS) return `You need at least ${MIN_SEATS} players.`;
-  const names = seats.map((s) => s.name.trim().toLowerCase());
-  if (names.some((n) => n === "")) return "Every player needs a name.";
-  if (new Set(names).size !== names.length) return "Each player needs a different name.";
-  return null;
-}
-
-// Turn the setup screen's seats into what newGame expects.
-export function toSetup(seats: Seat[]): PlayerSetup[] {
-  return seats.map((s) =>
-    s.kind === "human" ? { name: s.name.trim() } : { name: s.name.trim(), bot: s.kind }
-  );
 }

@@ -13,6 +13,8 @@ function check(name: string, actual: unknown, expected: unknown) {
   if (!ok) failures++;
 }
 
+const ok = (name: string, condition: boolean) => check(name, condition, true);
+
 // ---------- builders ----------
 const num = (value: number): Card => ({ kind: "number", value });
 const timeOut: Card = { kind: "action", action: "timeOut" };
@@ -57,6 +59,43 @@ console.log("\n--- Dealing ---");
 s = dealRound(setup([mk("A"), mk("B"), mk("C")], [num(1), num(2), num(3), num(4)]), 0, randomTarget);
 check("each player is dealt one card", s.players.map((p) => p.hand.length), [1, 1, 1]);
 check("dealing starts left of the dealer", s.players.map((p) => (p.hand[0] as { value: number }).value), [3, 1, 2]);
+
+console.log("\n--- Nothing left to draw ---");
+// Both piles empty: this can happen at a big table, where the players hold most of the 94 cards.
+s = takeTurn(setup([mk("A", [num(5)]), mk("B", [num(3)]), mk("C", [num(2)], "busted")], []), 0, "hit", randomTarget);
+ok("a hit with both piles empty ends the round instead of crashing", isRoundOver(s.players));
+ok("everyone still playing banks what they have", s.players[0].status === "stayed" && s.players[1].status === "stayed");
+ok("a busted player stays busted", s.players[2].status === "busted");
+ok("nobody's points changed", scoreHand(s.players[0]) === 5 && scoreHand(s.players[1]) === 3);
+
+s = takeTurn(setup([mk("A", [num(5)]), mk("B")], [drawThree, num(1)]), 0, "hit", picks(1));
+ok("Draw Three stops when the cards run out", numbersIn(s.players[1]) === 1 && isRoundOver(s.players));
+
+s = dealRound(setup([mk("A"), mk("B"), mk("C")], [num(1)]), 0, randomTarget);
+ok("dealing stops when the cards run out", isRoundOver(s.players) && s.players[1].hand.length === 1);
+
+s = takeTurn({ players: [mk("A", [num(5)]), mk("B", [num(3)])], deck: { drawPile: [], discardPile: [num(9)] } }, 0, "hit", randomTarget);
+ok("an empty draw pile is refilled from the discard pile first", numbersIn(s.players[0]) === 2 && !isRoundOver(s.players));
+
+// Small decks and many hungry players: every round must end, and no card may go missing.
+// (Shields are left out: with a deck this small, a player who always hits and always has a Shield
+// to burn could go round in circles, which can't happen with a real 94-card deck.)
+let tinyOk = true, tinyEnded = true;
+for (let n = 0; n < 300; n++) {
+  const size = 8 + (n % 20);
+  const cards = shuffle(createDeck().filter((c) => !(c.kind === "action" && c.action === "shield"))).slice(0, size);
+  const players = Array.from({ length: 3 + (n % 6) }, (_, k) => mk(`P${k + 1}`));
+  try {
+    const played = playRound({ players, deck: { drawPile: cards, discardPile: [] } }, n % players.length, randomTarget, () => true);
+    if (!isRoundOver(played.players)) tinyEnded = false;
+    const total = played.deck.drawPile.length + played.deck.discardPile.length + played.players.reduce((t, p) => t + p.hand.length, 0);
+    if (total !== size) tinyOk = false;
+  } catch {
+    tinyEnded = false;
+  }
+}
+ok("300 rounds on tiny decks all end without an error", tinyEnded);
+ok("no card goes missing when the deck runs out", tinyOk);
 
 // ---------- stress test: many full games ----------
 function simulateGame(playerCount: number) {

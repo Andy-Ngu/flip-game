@@ -38,11 +38,10 @@ package-lock.json
 # typescript
 *.tsbuildinfo
 .test-dist
+src/.test-dist/
 
 example
 
 # generated native folders
 /ios
 /android
-
-

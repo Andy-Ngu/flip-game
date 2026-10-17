@@ -1,4 +1,4 @@
-import { drawCard, hit, isRoundOver, stay } from "./rules";
+import { cardsAvailable, drawCard, hit, isRoundOver, stay } from "./rules";
 import { hasSevenStack } from "./scoring";
 import { Card, DeckState, Player } from "./types";
 
@@ -33,9 +33,21 @@ function discard(state: RoundState, cards: Card[]): RoundState {
   return { ...state, deck: { ...state.deck, discardPile: [...state.deck.discardPile, ...cards] } };
 }
 
-function draw(state: RoundState): { card: Card; state: RoundState } {
+// Draws the top card, or returns null when both piles are empty (this can happen at a big table,
+// where the players are holding most of the 94 cards).
+function draw(state: RoundState): { card: Card; state: RoundState } | null {
+  if (cardsAvailable(state.deck) === 0) return null;
   const result = drawCard(state.deck);
   return { card: result.card, state: { ...state, deck: result.deck } };
+}
+
+// Nothing left to draw, so the round cannot go on: everyone still playing banks what they have.
+// This is quiet on purpose. It is rare, and nobody did anything wrong.
+function closeRound(state: RoundState): RoundState {
+  return {
+    ...state,
+    players: state.players.map((p): Player => (p.status === "playing" ? { ...p, status: "stayed" } : p)),
+  };
 }
 
 // Put a card in front of a player. It stays there until the round ends,
@@ -73,7 +85,7 @@ function resolveAction(state: RoundState, actor: number, card: TargetedCard, cho
   let s = giveToHand(state, target, card);
 
   if (card.action === "timeOut") {
-    return setPlayer(s, target, { ...s.players[target], status: "timedOut" });
+    return setPlayer(s, target, { ...s.players[target], status: "timedOut", timedOutBy: actor });
   }
 
   // Draw Three: the target draws three cards, one at a time.
@@ -82,6 +94,10 @@ function resolveAction(state: RoundState, actor: number, card: TargetedCard, cho
     const p = s.players[target];
     if (p.status !== "playing" || hasSevenStack(p)) break; // bust or Seven Stack stops it early
     const drawn = draw(s);
+    if (drawn === null) {
+      s = closeRound(s);
+      break;
+    }
     s = drawn.state;
     if (needsTarget(drawn.card)) {
       pending.push(drawn.card); // counts toward the three, resolved afterwards
@@ -111,6 +127,7 @@ export function takeTurn(state: RoundState, i: number, decision: "hit" | "stay",
   if (player.status !== "playing") throw new Error("It isn't this player's turn to act");
   if (decision === "stay") return setPlayer(state, i, stay(player));
   const drawn = draw(state);
+  if (drawn === null) return closeRound(state);
   return receiveCard(drawn.state, i, drawn.card, choose);
 }
 
@@ -124,6 +141,7 @@ export function dealRound(state: RoundState, dealer: number, choose: ChooseTarge
     const i = (dealer + k) % n;
     if (s.players[i].status !== "playing") continue;
     const drawn = draw(s);
+    if (drawn === null) return closeRound(s);
     s = receiveCard(drawn.state, i, drawn.card, choose);
   }
   return s;

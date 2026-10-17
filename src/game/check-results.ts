@@ -1,4 +1,4 @@
-import { finalStandings, roundResults } from "./results";
+import { describeRound, duplicateIndex, finalStandings, ordinal, roundResults, startRows, turnPosition } from "./results";
 import { Card, Player } from "./types";
 
 let failures = 0;
@@ -69,5 +69,68 @@ check("a bust leaves the total at 190, so no one has won", !bustLeader.gameEnds)
 const f = finalStandings([player("A", [], 120), player("B", [], 210), player("C", [], 120)]);
 check("final standings are ordered", f.map((x) => x.name).join() === "B,A,C");
 check("final standings share ranks on ties", f.map((x) => x.rank).join() === "1,2,2");
+
+// ---- the target can be 150 or 250 ----
+const t150 = roundResults([player("A", num(10), 145), player("B", num(2), 0)], 150);
+check("playing to 150, reaching 155 ends the game", t150.gameEnds);
+const t150b = roundResults([player("A", num(4), 145), player("B", num(2), 0)], 150);
+check("playing to 150, 149 does not", !t150b.gameEnds);
+const t250 = roundResults([player("A", num(10), 205), player("B", num(2), 0)], 250);
+check("playing to 250, 215 does not end the game", !t250.gameEnds);
+check("playing to 250, 250 exactly does", roundResults([player("A", num(10), 240), player("B", num(2), 0)], 250).gameEnds);
+check("with no target given it is still 200", roundResults([player("A", num(10), 195), player("B", num(2), 0)]).gameEnds);
+
+// ---- what happened, in a few words ----
+const mod = (bonus: number, multiplier = 1): Card => ({ kind: "modifier", bonus, multiplier });
+const lines = roundResults([
+  player("Ann", [...num(8, 3, 9), mod(0, 2)], 0),                       // stayed, Double Score
+  player("Bea", [...num(7, 2, 7)], 0, "busted"),
+  { ...player("Cal", [...num(5, 4), { kind: "action", action: "timeOut" } as Card], 0, "timedOut"), timedOutBy: 0 },
+  { ...player("Dee", num(6), 0, "timedOut"), timedOutBy: 3 },
+  player("Eli", [...num(1, 2, 3, 4, 5, 6, 7)], 0),
+  player("Fay", num(4, 9), 0),
+  { ...player("Gus", num(2, 8, 5), 0), autoStayed: true },
+  player("Hal", [...num(9, 3, 4), mod(4)], 0),
+  player("Ivy", num(10), 0, "playing"),
+]);
+const lineOf = (name: string) => lines.rows.find((x) => x.name === name)!.line;
+check("a stay says how many cards, and not Double Score (the points already show it)", lineOf("Ann") === "Stayed with 4 cards");
+check("a bust names the duplicate", lineOf("Bea") === "Busted on a second 7");
+check("a Time Out names who played it, and not what is kept", lineOf("Cal") === "Timed out by Ann");
+check("timing yourself out is said plainly", lineOf("Dee") === "Timed themselves out");
+check("a Seven Stack is called out", lineOf("Eli") === "Made a Seven Stack (+15)");
+check("staying with two cards is 'early'", lineOf("Fay") === "Stayed early with 2 cards");
+check("an automatic stay says the time ran out", lineOf("Gus") === "Time ran out, stayed with 3 cards");
+check("a bonus card is not mentioned (the points show it)", lineOf("Hal") === "Stayed with 4 cards");
+check("no line has a dot in it: only the main fact is said", lines.rows.every((x) => !x.line.includes("·")));
+check("a player still in when a Seven Stack ended the round is described", lineOf("Ivy") === "Still in when the round ended");
+check("one card is singular", describeRound(player("Z", num(5), 0), [player("Z", num(5), 0)]) === "Stayed early with 1 card");
+
+console.log("\n--- The start of a round ---");
+check("the player after the dealer plays first", turnPosition(1, 0, 6) === 1 && turnPosition(2, 0, 6) === 2);
+check("the dealer plays last", turnPosition(0, 0, 6) === 6 && turnPosition(3, 3, 4) === 4);
+check("the order wraps round the table", turnPosition(0, 2, 6) === 4 && turnPosition(1, 5, 6) === 2);
+check("a table of three", [0, 1, 2].map((s) => turnPosition(s, 1, 3)).join() === "2,3,1");
+check("every seat has its own place, whoever deals", [3, 4, 5, 6, 7, 8].every((n) => Array.from({ length: n }, (_, d) => new Set(Array.from({ length: n }, (_, s) => turnPosition(s, d, n))).size === n).every(Boolean)));
+check("ordinal words", [1, 2, 3, 4, 5, 6, 7, 8].map(ordinal).join() === "1st,2nd,3rd,4th,5th,6th,7th,8th");
+check("ordinal words past ten", [11, 12, 13, 21, 22, 23, 101, 111].map(ordinal).join() === "11th,12th,13th,21st,22nd,23rd,101st,111th");
+
+const table = [player("Andy", [], 128), player("Fizz", [], 190), player("Robo", [], 128), player("Cleo", [], 40)];
+const rows = startRows(table, 2);
+check("the start board lists the best score first", rows.map((x) => x.name).join() === "Fizz,Andy,Robo,Cleo");
+check("tied scores are listed in playing order (Robo deals, so plays last)", rows[1].name === "Andy" && rows[2].name === "Robo" && rows[1].plays === 2 && rows[2].plays === 4);
+check("each row says when that player plays", rows.every((x) => x.plays === turnPosition(x.seat, 2, 4)));
+check("the first round has everyone on zero, so the board is in playing order", startRows(["A", "B", "C", "D"].map((n) => player(n, [], 0)), 0).map((x) => x.name).join() === "B,C,D,A");
+check("rows keep their seat and look", (() => {
+  const r2 = startRows([{ ...player("Me", [], 5), look: { character: "fox", color: "#F2C14E" } }, { ...player("Bot", [], 9), bot: "easy" }, player("Z", [], 1)], 0);
+  return r2[0].seat === 1 && r2[0].bot === "easy" && r2[1].look?.character === "fox";
+})());
+
+console.log("\n--- Finding the card that busted a player ---");
+check("no repeat means no duplicate", duplicateIndex(num(3, 7, 11)) === null);
+check("the second 7 is the duplicate", duplicateIndex(num(3, 7, 11, 7)) === 3);
+check("cards held after the bust do not move it", duplicateIndex([...num(3, 7, 7), { kind: "action", action: "timeOut" }]) === 2);
+check("an empty hand has no duplicate", duplicateIndex([]) === null);
+check("bonus and action cards are never duplicates", duplicateIndex([{ kind: "modifier", bonus: 4, multiplier: 1 }, { kind: "modifier", bonus: 4, multiplier: 1 }, { kind: "action", action: "shield" }, { kind: "action", action: "shield" }]) === null);
 
 console.log(failures === 0 ? "\nAll checks passed." : `\n${failures} check(s) FAILED.`);

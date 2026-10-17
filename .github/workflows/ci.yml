@@ -1,0 +1,66 @@
+# Runs on every push to main and on every pull request.
+#
+#   checks  type-checks the app with the TypeScript compiler and runs every test suite (npm test)
+#   bundle  builds the Android JavaScript bundle, the same step Expo does before an app is built, so a missing
+#           file, a broken import or a bad asset shows up here instead of on a phone
+#
+# The two jobs are independent: a green "checks" with a red "bundle" tells you straight away which kind of
+# problem it is. Needs package-lock.json to be committed (npm ci installs exactly what the lock file says).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push cancels the run still going for the previous one on the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# The jobs only read the code.
+permissions:
+  contents: read
+
+env:
+  EXPO_NO_TELEMETRY: "1"
+
+jobs:
+  checks:
+    name: Type-check and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Run the test suites
+        run: npm test
+
+  bundle:
+    name: Build check (Android bundle)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bundle the app for Android
+        run: npx expo export --platform android

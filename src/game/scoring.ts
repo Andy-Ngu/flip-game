@@ -17,7 +17,16 @@ export function scoreHand(player: Player): number {
   if (hasSevenStack(player)) total += 15;
   return total;
 }
-export function getWinners(players: Player[], target = 200): Player[] {
+// The score that wins the game. The table chooses one of three.
+export const TARGETS = [150, 200, 250] as const;
+export type Target = (typeof TARGETS)[number];
+export const DEFAULT_TARGET: Target = 200;
+
+export function isTarget(x: unknown): x is Target {
+  return typeof x === "number" && (TARGETS as readonly number[]).includes(x);
+}
+
+export function getWinners(players: Player[], target: number = DEFAULT_TARGET): Player[] {
   const best = Math.max(...players.map((p) => p.totalScore));
   if (best < target) return [];
   return players.filter((p) => p.totalScore === best);

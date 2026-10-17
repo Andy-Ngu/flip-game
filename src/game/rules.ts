@@ -1,6 +1,11 @@
 import { seededRandom, shuffle } from "./deck";
 import { hasSevenStack, scoreHand } from "./scoring";
 import { Card, DeckState, Player } from "./types";
+// How many cards could still be drawn: the draw pile plus the discard pile (which is reshuffled
+// when the draw pile runs out). When this is 0 there is simply nothing left to draw.
+export function cardsAvailable(deck: DeckState): number {
+  return deck.drawPile.length + deck.discardPile.length;
+}
 export function drawCard(deck: DeckState): { card: Card; deck: DeckState } {
   let drawPile = deck.drawPile;
   let discardPile = deck.discardPile;
@@ -48,6 +53,9 @@ export function isRoundOver(players: Player[]): boolean {
 }
 export function endRound(players: Player[], deck: DeckState): { players: Player[]; deck: DeckState } {
   const discarded = players.flatMap((p) => p.hand);
-  const next = players.map((p): Player => ({ ...p, totalScore: p.totalScore + scoreHand(p), hand: [], status: "playing" }));
+  const next = players.map((p): Player => {
+    const { timedOutBy: _t, autoStayed: _a, ...rest } = p; // those only describe the round that just ended
+    return { ...rest, totalScore: p.totalScore + scoreHand(p), hand: [], status: "playing" };
+  });
   return { players: next, deck: { ...deck, discardPile: [...deck.discardPile, ...discarded] } };
 }

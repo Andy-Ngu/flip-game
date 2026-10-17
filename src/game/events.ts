@@ -1,18 +1,22 @@
 import { isDuplicate } from "./rules";
 import { uniqueNumberCount } from "./scoring";
 import { Game } from "./session";
+import { deckLow, leaderOf, projectedTotal } from "./moments";
 import { Card, Player } from "./types";
 
 // Things that can happen in one move, worked out by comparing the game before
-// and after. Haptics and animations react to these instead of poking around
+// and after. Haptics, sounds and animations react to these instead of poking around
 // inside the game rules.
 export type GameEvent =
-  | { kind: "card"; player: number; card: Card }
+  | { kind: "card"; player: number; card: Card; count: number } // count: how many cards that player holds right after this one
   | { kind: "saved"; player: number; shield: Card; duplicate: Card | null } // a Shield was used up, blocking this duplicate
   | { kind: "stay"; player: number }
   | { kind: "timedOut"; player: number }
   | { kind: "bust"; player: number }
   | { kind: "sevenStack"; player: number }
+  | { kind: "reshuffle" }                      // the draw pile ran out and the discard pile became the new deck
+  | { kind: "deckLow"; left: number }          // the draw pile just got short
+  | { kind: "leadChange"; from: number; to: number; points: number; fromPoints: number } // `to` just passed `from`
   | { kind: "newRound" }
   | { kind: "gameOver"; winners: number[] };
 
@@ -31,13 +35,18 @@ export function diffEvents(prev: Game, next: Game): GameEvent[] {
   }
 
   // Scoring a round, or starting a fresh game, replaces every hand at once.
-  if (prev.phase !== "playing") return [{ kind: "newRound" }];
+  // Changes that are not a move (a computer taking over a seat, say) are not a new round.
+  if (prev.phase !== "playing") {
+    return next.phase === "playing" || next.roundNo !== prev.roundNo ? [{ kind: "newRound" }] : [];
+  }
 
   const before = prev.round.players;
   const after = next.round.players;
   if (before.length !== after.length) return [{ kind: "newRound" }];
 
   const events: GameEvent[] = [];
+  if (prev.round.deck.seed !== next.round.deck.seed) events.push({ kind: "reshuffle" });
+
   after.forEach((q, i) => {
     const p = before[i];
 
@@ -45,9 +54,10 @@ export function diffEvents(prev: Game, next: Game): GameEvent[] {
     // when working out how many cards arrived.
     const shieldUsed = p.hand.some(isShield) && !q.hand.some(isShield) && q.hand.length < p.hand.length;
     const removed = shieldUsed ? 1 : 0;
-    const added = q.hand.length - p.hand.length + removed;
-    for (const card of q.hand.slice(q.hand.length - Math.max(0, added))) {
-      events.push({ kind: "card", player: i, card });
+    const added = Math.max(0, q.hand.length - p.hand.length + removed);
+    const firstNew = q.hand.length - added;
+    for (let k = 0; k < added; k++) {
+      events.push({ kind: "card", player: i, card: q.hand[firstNew + k], count: firstNew + k + 1 });
     }
     if (shieldUsed && q.status !== "busted") {
       events.push({ kind: "saved", player: i, shield: p.hand.find(isShield)!, duplicate: blockedCard(prev, next, p) });
@@ -60,6 +70,18 @@ export function diffEvents(prev: Game, next: Game): GameEvent[] {
     }
     if (uniqueNumberCount(q) >= 7 && uniqueNumberCount(p) < 7) events.push({ kind: "sevenStack", player: i });
   });
+
+  // The pile got short: a one-time warning each time it crosses the line.
+  const was = prev.round.deck.drawPile.length;
+  const now = next.round.deck.drawPile.length;
+  if (deckLow(now) && !deckLow(was) && now < was) events.push({ kind: "deckLow", left: now });
+
+  // Someone passed the leader.
+  const lead = leaderOf(before);
+  const leadNow = leaderOf(after);
+  if (lead !== null && leadNow !== null && lead !== leadNow) {
+    events.push({ kind: "leadChange", from: lead, to: leadNow, points: projectedTotal(after[leadNow]), fromPoints: projectedTotal(after[lead]) });
+  }
   return events;
 }
 
@@ -79,20 +101,28 @@ function blockedCard(prev: Game, next: Game, before: Player): Card | null {
 
 const INTENSITY: Feel[] = ["tick", "light", "medium", "warning", "heavy", "success", "error"];
 
+// Your own cards get a little firmer the more you have drawn in a row: the buzz climbs with your hand.
+export function streakFeel(count: number): Feel {
+  return count >= 5 ? "medium" : count >= 3 ? "light" : "tick";
+}
+
 // The single strongest feeling for a batch of events, or null if nothing happened.
-// A human's own bust is the strongest warning; a computer's is milder.
-export function feelFor(events: GameEvent[], players: Player[]): Feel | null {
-  const human = (i: number) => players[i]?.bot === undefined;
+// `me` is the seat of the person holding the phone. Their own bust is the strongest warning;
+// other players' busts are milder.
+export function feelFor(events: GameEvent[], me: number): Feel | null {
   const feels: Feel[] = events.map((e): Feel => {
     switch (e.kind) {
-      case "gameOver": return e.winners.some(human) ? "success" : "warning";
-      case "sevenStack": return human(e.player) ? "success" : "heavy";
-      case "bust": return human(e.player) ? "error" : "warning";
+      case "gameOver": return e.winners.includes(me) ? "success" : "warning";
+      case "sevenStack": return e.player === me ? "success" : "heavy";
+      case "bust": return e.player === me ? "error" : "warning";
       case "timedOut": return "heavy";
       case "saved": return "medium";
       case "stay": return "light";
       case "newRound": return "light";
-      case "card": return "tick";
+      case "reshuffle": return "medium";
+      case "deckLow": return "light";
+      case "leadChange": return e.to === me ? "success" : "light";
+      case "card": return e.player === me ? streakFeel(e.count) : "tick";
     }
   });
   if (feels.length === 0) return null;

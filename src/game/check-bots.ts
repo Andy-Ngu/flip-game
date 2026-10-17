@@ -13,6 +13,13 @@ const shield: Card = { kind: "action", action: "shield" };
 const mk = (id: string, hand: Card[] = [], bot?: BotLevel, totalScore = 0): Player =>
   ({ id, name: id, hand, totalScore, status: "playing", ...(bot ? { bot } : {}) });
 
+console.log("--- A computer covering a human's seat ---");
+check("a covered human seat plays like a Normal computer: keeps going at 29", botDecide([mk("Me", [num(12), num(10), num(7)])], 0) === "hit");
+check("...and stays at 30", botDecide([mk("Me", [num(12), num(10), num(8)])], 0) === "stay");
+check("...and hits with no cards", botDecide([mk("Me", [])], 0) === "hit");
+check("a seat that has its own level keeps it, even when a cover level is offered", botDecide([mk("A", [num(12), num(3)], "easy")], 0, "hard") === "stay");
+check("the cover level can be chosen", botDecide([mk("Me", [num(12), num(3)])], 0, "easy") === "stay" && botDecide([mk("Me", [num(12), num(3)])], 0, "medium") === "hit");
+
 console.log("--- Hit or stay ---");
 check("a bot with no cards hits", botDecide([mk("A", [], "hard")], 0) === "hit");
 check("easy stays at 15", botDecide([mk("A", [num(12), num(3)], "easy")], 0) === "stay");

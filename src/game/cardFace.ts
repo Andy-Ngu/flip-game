@@ -5,39 +5,83 @@ import { Card } from "./types";
 export type Face = {
   corner: string | null; // small text in the top-left and bottom-right corners (number cards only)
   center: string;        // large text in the middle (also the fallback label when an icon is drawn)
-  title: string | null;  // small caption under the middle (action and modifier cards)
+  top: string | null;    // small caption at the top (action and modifier cards): ACTION, BONUS or MODIFIER
+  title: string | null;  // small caption at the bottom (action and modifier cards): the card's name
   bg: string;            // card paper color
-  accent: string;        // text and outline color
-  icon: "pause" | "shield" | null; // action cards that are drawn with shapes instead of a text symbol
+  ink: string;           // text and icon color
+  outline: string;       // border color
+  thick: boolean;        // a thick border (the high contrast look)
+  icon: "shield" | "clock" | "three" | null; // action cards that are drawn with shapes instead of a text symbol
   underline: boolean;    // 6 and 9 are underlined, so they can be told apart when a card is upside down
 };
 
-// Number cards run from cool to hot, so a glance tells you how risky a number is:
-// the high numbers are the most common ones in the deck and the likeliest to bust you.
-const TIERS = [
-  { upTo: 3, bg: "#E3F4EE", accent: "#1F8A70" },  // 0-3  cool green
-  { upTo: 6, bg: "#E6EEFB", accent: "#2F5FC4" },  // 4-6  blue
-  { upTo: 9, bg: "#FBEBD9", accent: "#C2570F" },  // 7-9  orange
-  { upTo: 12, bg: "#FBE1E1", accent: "#C0262D" }, // 10-12 red
+// Number cards run from cool to hot, so a glance tells you how risky a number is: the high numbers
+// are the most common ones in the deck and the likeliest to bust you. Each number gets its own step
+// inside its colour: lighter is lower, deeper is higher. [paper, ink]. Every pair has a text
+// contrast of at least 4.5 to 1 (the card tests check it).
+const SHADES: [string, string][] = [
+  ["#EAF8F2", "#177560"], ["#D8F1E6", "#146A56"], ["#C6EADB", "#11604D"], ["#B4E3CF", "#0E5543"], // 0-3 green
+  ["#E8F0FC", "#2F5FC4"], ["#CEDEF7", "#234AA7"], ["#B5CBF2", "#17368A"],                         // 4-6 blue
+  ["#FCEEDD", "#A94A0A"], ["#F9DCBB", "#933F08"], ["#F5C998", "#7D3405"],                         // 7-9 orange
+  ["#FCE6E6", "#C0262D"], ["#F7CCCC", "#9F1A22"], ["#F2B1B1", "#7E0F16"],                         // 10-12 red
 ];
 
-export function faceFor(card: Card): Face {
+// The colour family of a number, used for the thick outline in high contrast.
+const FAMILIES = ["#177560", "#2F5FC4", "#A94A0A", "#C0262D"];
+export const familyOf = (value: number): number => Math.min(3, Math.floor(Math.max(0, value - 1) / 3));
+
+const WHITE = "#FFFFFF";
+const BLACK = "#000000";
+
+type Look = { bg: string; ink: string };
+
+// Action and bonus cards keep one look each. The Shield green and the Bonus gold are a touch deeper than
+// in the first sketches, so their small captions also reach a contrast of 4.5 to 1.
+const ACTION_LOOK: Record<"timeOut" | "drawThree" | "shield", Look> = {
+  timeOut: { bg: "#E1F0FC", ink: "#2468A8" },
+  drawThree: { bg: "#F1E6FB", ink: "#7A3FB0" },
+  shield: { bg: "#E0F5E1", ink: "#287A36" },
+};
+const BONUS_LOOK: Look = { bg: "#FFF3C4", ink: "#906400" };
+const DOUBLE_LOOK: Look = { bg: "#FFE3C2", ink: "#9A4B00" };
+
+// With high contrast on, the shading steps are dropped: every card is plain white with black
+// writing and a thick outline in its own colour.
+function styled(look: Look, highContrast: boolean, outlineForHighContrast: string): Pick<Face, "bg" | "ink" | "outline" | "thick"> {
+  return highContrast
+    ? { bg: WHITE, ink: BLACK, outline: outlineForHighContrast, thick: true }
+    : { bg: look.bg, ink: look.ink, outline: look.ink, thick: false };
+}
+
+export function faceFor(card: Card, highContrast = false): Face {
   if (card.kind === "number") {
-    const tier = TIERS.find((t) => card.value <= t.upTo) ?? TIERS[TIERS.length - 1];
-    return { corner: String(card.value), center: String(card.value), title: null, bg: tier.bg, accent: tier.accent, icon: null, underline: card.value === 6 || card.value === 9 };
+    const value = Math.max(0, Math.min(12, card.value));
+    const [bg, ink] = SHADES[value];
+    return {
+      corner: String(card.value), center: String(card.value), top: null, title: null,
+      ...styled({ bg, ink }, highContrast, FAMILIES[familyOf(value)]),
+      icon: null, underline: card.value === 6 || card.value === 9,
+    };
   }
   if (card.kind === "action") {
-    switch (card.action) {
-      case "timeOut":
-        return { corner: null, center: "II", title: "TIME OUT", bg: "#DDF1FB", accent: "#1B77B8", icon: "pause", underline: false };
-      case "drawThree":
-        return { corner: null, center: "↻", title: "DRAW 3", bg: "#EBE0FA", accent: "#6A3FB5", icon: null, underline: false };
-      case "shield":
-        return { corner: null, center: "S", title: "SHIELD", bg: "#E0F5E1", accent: "#2E8B3E", icon: "shield", underline: false };
-    }
+    const look = ACTION_LOOK[card.action];
+    const text = {
+      timeOut: { center: "II", title: "TIME OUT", icon: "clock" as const },
+      drawThree: { center: "3", title: "DRAW THREE", icon: "three" as const },
+      shield: { center: "S", title: "SHIELD", icon: "shield" as const },
+    }[card.action];
+    return {
+      corner: null, center: text.center, top: "ACTION", title: text.title,
+      ...styled(look, highContrast, look.ink), icon: text.icon, underline: false,
+    };
   }
-  const text = card.multiplier === 2 ? "×2" : `+${card.bonus}`;
-  return { corner: null, center: text, title: card.multiplier === 2 ? "DOUBLE" : "BONUS", bg: "#FFF3C4", accent: "#9A6B00", icon: null, underline: false };
+  const double = card.multiplier === 2;
+  const look = double ? DOUBLE_LOOK : BONUS_LOOK;
+  return {
+    corner: null, center: double ? "×2" : `+${card.bonus}`, top: double ? "MODIFIER" : "BONUS",
+    title: double ? "DOUBLE SCORE" : "BONUS",
+    ...styled(look, highContrast, look.ink), icon: null, underline: false,
+  };
 }
 
 // A stable key for each card, so React can tell cards apart even as a hand

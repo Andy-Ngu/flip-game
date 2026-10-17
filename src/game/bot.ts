@@ -43,11 +43,15 @@ function hardDecision(players: Player[], i: number): "hit" | "stay" {
   return expectedGain > expectedLoss ? "hit" : "stay";
 }
 
-// Hit or stay for the computer player at index i.
-export function botDecide(players: Player[], i: number): "hit" | "stay" {
+// The level of the computer that plays a human's seat while they are away.
+export const COVER_LEVEL: BotLevel = "medium";
+
+// Hit or stay for the computer player at index i. `fallback` is used for a human's seat that a
+// computer is covering, which has no level of its own.
+export function botDecide(players: Player[], i: number, fallback: BotLevel = COVER_LEVEL): "hit" | "stay" {
   const me = players[i];
   if (me.hand.length === 0) return "hit"; // staying needs at least one card
-  const level: BotLevel = me.bot ?? "hard";
+  const level: BotLevel = me.bot ?? fallback;
   const score = scoreHand(me);
   if (level === "easy") return score >= 15 ? "stay" : "hit";
   if (level === "medium") return score >= 30 ? "stay" : "hit";

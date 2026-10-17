@@ -1,6 +1,7 @@
-import { act, chooseTarget, Game, newGame, nextRound } from "./session";
+import { act, chooseTarget, Game, isBotSeat, newGame, nextRound, PlayerSetup, settleDeal } from "./session";
 import { scoreHand } from "./scoring";
 import { Card, Player } from "./types";
+import { gameFrom } from "./testkit";
 
 let failures = 0;
 function check(name: string, ok: boolean) {
@@ -15,10 +16,7 @@ const drawThree: Card = { kind: "action", action: "drawThree" };
 const shield: Card = { kind: "action", action: "shield" };
 const mk = (id: string, hand: Card[] = [], status: Player["status"] = "playing"): Player =>
   ({ id, name: id, hand, totalScore: 0, status });
-const gameWith = (players: Player[], drawPile: Card[]): Game => ({
-  round: { players, deck: { drawPile, discardPile: [] } },
-  dealer: 0, current: 0, phase: "playing", winners: [], pending: null, choices: [], resume: null,
-});
+const gameWith = (players: Player[], drawPile: Card[]): Game => gameFrom(players, drawPile);
 
 console.log("--- Choosing targets ---");
 let g = act(gameWith([mk("A", [num(1)]), mk("B"), mk("C")], [timeOut, num(9)]), "hit");
@@ -54,13 +52,11 @@ g = act(gameWith([mk("A", [shield]), mk("B", [shield], "stayed")], [shield]), "h
 check("with nobody eligible it is discarded", g.pending === null && g.round.deck.discardPile.length === 1);
 
 console.log("\n--- Ties at 200+ ---");
-const roundOverWith = (a: number, b: number): Game => ({
-  round: {
-    players: [{ ...mk("A", [], "stayed"), totalScore: a }, { ...mk("B", [], "stayed"), totalScore: b }],
-    deck: { drawPile: shuffleForTest(), discardPile: [] },
-  },
-  dealer: 0, current: -1, phase: "roundOver", winners: [], pending: null, choices: [], resume: null,
-});
+const roundOverWith = (a: number, b: number): Game => gameFrom(
+  [{ ...mk("A", [], "stayed"), totalScore: a }, { ...mk("B", [], "stayed"), totalScore: b }],
+  shuffleForTest(),
+  { current: -1, phase: "roundOver" },
+);
 function shuffleForTest(): Card[] {
   return Array.from({ length: 40 }, (_, k) => num((k % 12) + 1));
 }
@@ -131,5 +127,88 @@ console.log("\n--- 300 full games ---");
 check("every game played to a winner", allGamesEnded);
 check("it is always an active player's turn", turnsAlwaysValid);
 check("94 cards accounted for after every step", allCardsKept);
+
+console.log("\n--- The target and the record ---");
+{
+  const rigged = (target: number, total: number) => gameFrom(
+    [mk("A", [num(10), num(5)], "playing"), mk("B", [num(9)], "stayed"), mk("C", [num(2)], "stayed")],
+    [num(8)],
+    { target },
+  );
+  const withTotal = (g: Game, total: number): Game => ({ ...g, round: { ...g.round, players: g.round.players.map((p, i) => (i === 0 ? { ...p, totalScore: total } : p)) } });
+
+  // Player A stays with 15 round points on top of a banked total.
+  const finishRound = (g: Game): Game => {
+    let x = act(g, "stay");           // A stays, then B and C are already out
+    return x;
+  };
+  const at150 = nextRound(finishRound(withTotal(rigged(150, 0), 140)));
+  check("with a target of 150, 155 points wins", at150.phase === "gameOver" && at150.winners[0].id === "A");
+  const at200 = nextRound(finishRound(withTotal(rigged(200, 0), 140)));
+  check("with a target of 200, 155 points does not win yet", at200.phase === "playing" && at200.roundNo === 2);
+  const at250 = nextRound(finishRound(withTotal(rigged(250, 0), 236)));
+  check("with a target of 250, 251 points wins", at250.phase === "gameOver");
+  check("the target survives from round to round", at200.target === 200 && nextRound(finishRound(withTotal(rigged(150, 0), 100))).target === 150);
+  check("the round number counts up", at200.roundNo === 2 && newGame(["A", "B", "C"]).roundNo === 1);
+  check("a new game plays to 200 unless told otherwise", newGame(["A", "B", "C"]).target === 200 && newGame(["A", "B", "C"], { target: 150 }).target === 150);
+
+  // Seven Stacks and best rounds are remembered for each player.
+  const six = [num(1), num(2), num(3), num(4), num(5), num(6)];
+  const stackGame = gameFrom([mk("A", six), mk("B", [num(9)], "stayed"), mk("C", [num(2)], "stayed")], [num(7)]);
+  const stacked = act(stackGame, "hit");
+  check("nothing is counted until the round is banked", stacked.stacks[0] === 0 && stacked.best[0].points === 0);
+  const banked = nextRound(stacked);
+  check("a Seven Stack is counted for the player who made it", banked.stacks[0] === 1 && banked.stacks[1] === 0 && banked.stacks[2] === 0);
+  check("their best round is that round, marked as a Seven Stack", banked.best[0].points === 28 + 15 && banked.best[0].sevenStack === true);
+  check("another player's best round is their own", banked.best[1].points === 9 && banked.best[1].sevenStack === false);
+  check("the counts have one entry per player", banked.stacks.length === 3 && banked.best.length === 3 && banked.quiet.length === 3 && banked.cover.length === 3);
+}
+
+console.log("\n--- Questions asked while dealing ---");
+{
+  // Somebody is sometimes dealt a Time Out or a Draw Three. The computer players answer at once, so the
+  // table is dealt in one go; a question for you is left for you.
+  const seats: PlayerSetup[] = [
+    { name: "Me" }, { name: "Fizz", bot: "easy" }, { name: "Robo", bot: "medium" }, { name: "Zed", bot: "hard" }, { name: "Kit", bot: "medium" },
+  ];
+  let botAsked = 0, botLeft = 0, youAsked = 0, dealtAll = true, noNote = true, keepsNote = true, steady = true, kept94 = true, botsFirst = true;
+  for (let n = 0; n < 600; n++) {
+    const raw = newGame(seats);
+    const settled = settleDeal(raw);
+    if (raw.pending && isBotSeat(raw, raw.pending.actor)) {
+      botAsked++;
+      if (settleDeal({ ...raw, note: "Time ran out" }).note !== "Time ran out") keepsNote = false;
+    }
+    if (settled.pending && isBotSeat(settled, settled.pending.actor)) botLeft++;
+    if (settled.pending && settled.pending.actor === 0) youAsked++;
+    // (A player who was dealt a Time Out and gave it away may hold no card yet: that is the rules, not a half-dealt table.)
+    if (!settled.pending && settled.round.deck.drawPile.length + settled.round.deck.discardPile.length === 94) dealtAll = false;
+    if (settled.note !== undefined) noNote = false;
+    if (settleDeal(settled) !== settled) steady = false;
+    const total = settled.round.deck.drawPile.length + settled.round.deck.discardPile.length +
+      settled.round.players.reduce((s, p) => s + p.hand.length, 0);
+    if (total !== 94) kept94 = false;
+    // When you are asked, answering never leaves a computer player's deal question waiting.
+    if (settled.pending && settled.pending.actor === 0) {
+      const o = settled.pending.options;
+      const after = settleDeal(chooseTarget(settled, o[o.length - 1]));
+      if (after.pending && after.resume?.kind === "deal" && isBotSeat(after, after.pending.actor)) botsFirst = false;
+    }
+  }
+  check("the test really saw computer players being asked", botAsked > 20);
+  check("a computer player's question is answered at once", botLeft === 0);
+  check("a question for you is left for you", youAsked > 5);
+  check("a settled deal has really been dealt (cards left the deck)", dealtAll);
+  check("settling adds no note of its own", noNote);
+  check("the note the game came with is kept", keepsNote);
+  check("settling twice changes nothing", steady);
+  check("94 cards accounted for after settling", kept94);
+  check("answering your question settles the rest of the deal too", botsFirst);
+
+  // A question in the middle of a round is not a deal question: it is left alone.
+  const mid = act(gameFrom([mk("A", [num(1)]), mk("B"), mk("C")], [timeOut, num(9)]), "hit");
+  check("a question in the middle of a round is not touched", mid.pending !== null && settleDeal(mid) === mid);
+}
+
 console.log("Questions asked across all games:", questions);
 console.log(failures === 0 ? "\nAll checks passed." : `\n${failures} check(s) FAILED.`);

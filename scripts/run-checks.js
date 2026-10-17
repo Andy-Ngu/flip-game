@@ -31,7 +31,18 @@ try {
 }
 
 const out = path.join(gameDir, "..", ".test-dist");
-const suites = ["round", "session", "bots", "seats", "events", "cards", "results", "settings", "sounds"];
+// Every check-*.ts file in the game folder is a suite. They are found here instead of being listed by hand, so a
+// new suite is run without anybody having to remember to add it (and an old copy of this script cannot quietly skip
+// the newer ones).
+const suites = fs
+  .readdirSync(gameDir)
+  .filter((f) => /^check-.+\.ts$/.test(f))
+  .map((f) => f.slice("check-".length, -".ts".length))
+  .sort();
+if (suites.length === 0) {
+  console.error(`No check-*.ts files found in ${gameDir}.`);
+  process.exit(1);
+}
 
 fs.rmSync(out, { recursive: true, force: true });
 
@@ -61,7 +72,7 @@ for (const s of suites) {
   const passes = (text.match(/^PASS:/gm) || []).length;
   const ok = run.status === 0 && !/^FAIL:/m.test(text) && text.includes("All checks passed");
   total += passes;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${s.padEnd(8)} ${passes} checks`);
+  console.log(`${ok ? "ok  " : "FAIL"}  ${s.padEnd(10)} ${passes} checks`);
   if (!ok) {
     failed++;
     console.log(text);

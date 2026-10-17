@@ -1,4 +1,8 @@
 import { Card } from "./types";
+
+// A full deck: one 0, then as many of each number as its value (1 to 12), 9 action cards and 6 bonus cards.
+export const DECK_SIZE = 94;
+
 export function createDeck(): Card[] {
   const deck: Card[] = [];
   deck.push({ kind: "number", value: 0 });
@@ -25,7 +29,7 @@ export function seededRandom(seed: number): () => number {
 }
 
 // Fisher-Yates shuffle. Returns a new array. Pass a seeded generator for a repeatable shuffle.
-export function shuffle(cards: Card[], random: () => number = Math.random): Card[] {
+export function shuffle<T>(cards: T[], random: () => number = Math.random): T[] {
   const result = [...cards];
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
