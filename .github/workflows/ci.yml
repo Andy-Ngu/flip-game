@@ -4,6 +4,9 @@
 #   bundle  builds the Android JavaScript bundle, the same step Expo does before an app is built, so a missing
 #           file, a broken import or a bad asset shows up here instead of on a phone
 #
+# The versions are pinned on purpose (ubuntu-24.04 instead of ubuntu-latest, and a numbered version of each action),
+# so the build does not change under you when GitHub moves "latest" to a new system.
+#
 # The two jobs are independent: a green "checks" with a red "bundle" tells you straight away which kind of
 # problem it is. Needs package-lock.json to be committed (npm ci installs exactly what the lock file says).
 name: CI
@@ -28,12 +31,12 @@ env:
 jobs:
   checks:
     name: Type-check and tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -49,12 +52,12 @@ jobs:
 
   bundle:
     name: Build check (Android bundle)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
